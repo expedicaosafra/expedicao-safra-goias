@@ -1,0 +1,44 @@
+rules_version = '2';
+// Regras do Firestore da Expedição Safra Goiás.
+// Cada pessoa precisa estar logada E cadastrada pelo administrador em usuarios/{email}.
+// Perfis: admin · rota (rota da expedição) · tec_prod (técnico de produtividade) · tec_cus (técnico de custos)
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function logado() { return request.auth != null && request.auth.token.email != null; }
+    function email() { return request.auth.token.email.lower(); }
+    // administradores iniciais (podem cadastrar os demais)
+    function fundador() { return logado() && email() in ['expedicao.safra@ifag.org.br', 'vilmarjr.agronomia@gmail.com']; }
+    function perfilPath() { return /databases/$(database)/documents/usuarios/$(email()); }
+    function cadastrado() {
+      return logado() && exists(perfilPath())
+        && get(perfilPath()).data.get('ativo', true) != false
+        && get(perfilPath()).data.get('_del', false) != true;
+    }
+    function papel() { return cadastrado() ? get(perfilPath()).data.papel : ''; }
+    function admin() { return fundador() || papel() == 'admin'; }
+    function algum() { return admin() || cadastrado(); }
+    function produtividade() { return admin() || papel() in ['rota', 'tec_prod']; }
+    function custos() { return admin() || papel() in ['rota', 'tec_cus']; }
+
+    match /usuarios/{id} {
+      allow read: if admin() || (logado() && id == email());
+      allow write: if admin();
+    }
+    match /config/{id} {
+      allow read: if algum();
+      allow write: if admin();
+    }
+    // fazendas: todos consultam e cadastram; a importação e a edição em massa ficam com o administrador no app
+    match /propriedades/{id} {
+      allow read, write: if algum();
+    }
+    // coleta de produtividade (visitas, amostragens, pontos e fotos): leitura para todos os cadastrados
+    match /visitas/{id} { allow read: if algum(); allow write: if produtividade(); }
+    match /amostragens/{id} { allow read: if algum(); allow write: if produtividade(); }
+    match /pontos/{id} { allow read: if algum(); allow write: if produtividade(); }
+    match /fotos/{id} { allow read: if algum(); allow write: if produtividade(); }
+    match /fotosFull/{id} { allow read: if algum(); allow write: if produtividade(); }
+    // custo de produção: só administrador, rota e técnicos de custo
+    match /custos/{id} { allow read, write: if custos(); }
+  }
+}
