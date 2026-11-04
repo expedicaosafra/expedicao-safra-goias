@@ -203,6 +203,7 @@ details.geral > .ficha { padding: 0 12px 12px; }
 .quem-g h3 { margin: 4px 0 0; }
 .quem-g .quem-opts .quem-b { min-height: 56px; font-size: 17px; text-transform: none; letter-spacing: 0; }
 .quem-b small { display: block; font-family: var(--f-body); font-size: 12px; font-weight: 400; opacity: .75; text-transform: none; }
+.rel { white-space: pre-wrap; font-family: var(--f-body); font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; margin: 0; max-height: 320px; overflow: auto; }
 .mic-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
 .mic { display: inline-flex; align-items: center; gap: 6px; }
 .mic svg { width: 16px; height: 16px; }
@@ -538,6 +539,18 @@ body:not([data-scr="am"]) .mbar, body:not([data-view="coleta"]) .mbar { display:
         </div>
           </div>
         </details>
+        <div class="sec" id="rel-sec">
+          <div class="sec-h"><h2>Relatório para o produtor</h2><span class="tag">enviar</span></div>
+          <p class="legend" style="margin:0">Resumo da visita para mandar ao produtor pelo seu celular. Confira o texto antes de enviar.</p>
+          <pre class="rel" id="rel-txt"></pre>
+          <label class="legend" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="rel-fotos" checked style="width:auto;min-height:0"> Incluir fotos (até 6) ao usar Compartilhar</label>
+          <div class="actions">
+            <a class="btn pri" id="rel-wpp" target="_blank" rel="noopener" hidden>WhatsApp do produtor</a>
+            <button type="button" class="btn" id="rel-share">Compartilhar (WhatsApp, e-mail…)</button>
+            <button type="button" class="btn ghost" id="rel-copy">Copiar texto</button>
+            <span class="legend" id="rel-msg"></span>
+          </div>
+        </div>
         <div class="danger-zone"><button type="button" class="btn sm ghost danger" id="btn-del-visita">Excluir visita</button></div>
       </div>
     </div>
@@ -1493,7 +1506,7 @@ function renderVisitaDyn() {
       ${falta.length ? `<div class="m">Falta: ${falta.join(", ")}</div>` : ""}${eq.length ? `<div class="m">Por: ${esc(eq.join(", "))}</div>` : ""}
       <div class="r"><button class="btn sm pri" type="button" data-open-am="${esc(a.id)}">Abrir amostragem</button></div></div>`;
   }).join("");
-  renderGeo("v"); renderMercado();
+  renderGeo("v"); renderMercado(); renderRelatorio();
   const falta = [!v.prop && "nome", !v.mun && "município", !v.vendeu && "comercialização", !v.entrega && "cidade de entrega", (!v.doenca || !v.praga || !v.estresse) && "doenças/pragas/estresse"].filter(Boolean);
   const sum = $("#vi-geral-sum"); sum.textContent = falta.length ? "falta: " + falta.join(", ") : `preenchido${v.criadoPor ? " por " + v.criadoPor : ""} · toque para ver ou editar`; sum.classList.toggle("need", falta.length > 0);
   [["doenca", "doencaQual"], ["praga", "pragaQual"]].forEach(([k, q]) => { const f = $(`#f_${q}-f`); f.hidden = v[k] !== "sim"; f.classList.toggle("need", v[k] === "sim" && !String(v[q] || "").trim()); });
@@ -1677,6 +1690,53 @@ async function flushFotos() {
   }
   S.fotoQ = rest; lsSet("es2_fotoq", rest); fotoBusy = false; setStatus();
   if (S.nav.scr === "am") renderFotos();
+}
+/* ---- relatório da visita para o produtor (enviado pelo celular do técnico) ---- */
+function textoRelatorio() {
+  const v = V(), ams = amsDe(S.nav.vid), L = [];
+  L.push("*Expedição Safra Goiás · 4ª edição*", `Relatório da visita · ${v.prop || "Fazenda"}${v.mun ? " (" + v.mun + ")" : ""}`, `Data: ${fmtDate(v.data)}${S.me ? " · Técnico: " + S.me.nome : ""}`, "");
+  ams.forEach((a) => {
+    const pts = pontosDe(a.id), c = calc(amView(a.id)), veg = a.fase === "vegetativo";
+    if (!c.n) return;
+    L.push(`*${a.rotulo || "Talhão"}*${a.cultivar ? " · " + a.cultivar : ""}`);
+    const info = [a.dataPlantio && "plantio " + fmtDate(a.dataPlantio), a.estadio && "estádio " + a.estadio, a.areaTotal && fmt(num(a.areaTotal), 1) + " ha"].filter(Boolean).join(" · ");
+    if (info) L.push(info);
+    L.push(`${c.n} pontos amostrados · ${fmt(c.plantasM, 1)} plantas/m · população ${fmt(c.pop / 1000, 0)} mil plantas/ha`);
+    if (veg) L.push(`Altura média ${fmt(c.altura, 1)} cm · raiz ${fmt(c.raiz, 1)} cm · ${fmt(c.entrenos, 1)} entrenós`);
+    else {
+      L.push(`${fmt(c.vag, 1)} vagens/planta · ${fmt(c.gpv, 1)} grãos/vagem · PMG ${fmt(c.pmgG, 0)} g`);
+      L.push(`➡️ Produtividade estimada: *${fmt(c.sc, 1)} sc/ha* (${fmt(c.corr, 0)} kg/ha)`);
+    }
+    const oc = pts.filter((p) => (p.tags || []).length).map((p) => `P${p.n}: ${p.tags.join(", ")}${p.doencaQual ? " (" + p.doencaQual + ")" : ""}${p.pragaQual ? " (" + p.pragaQual + ")" : ""}`);
+    if (oc.length) L.push("Ocorrências: " + oc.join("; "));
+    const ob = pts.filter((p) => p.obs).map((p) => `P${p.n}: ${p.obs}`);
+    if (ob.length) L.push("Observações dos pontos: " + ob.join("; "));
+    L.push("");
+  });
+  const gerais = [v.doenca === "sim" && "Doenças: " + (v.doencaQual || "sim"), v.praga === "sim" && "Pragas: " + (v.pragaQual || "sim"), v.estresse && v.estresse !== "nenhum" && "Estresse: " + ({ hidrico: "hídrico", termico: "térmico", ambos: "hídrico e térmico" }[v.estresse] || v.estresse), v.obs && "Observações: " + v.obs].filter(Boolean);
+  if (gerais.length) { L.push("*Lavoura*", ...gerais, ""); }
+  L.push("_Estimativa preliminar pela metodologia Expedição Safra (amostragem de 1 m linear por ponto). Os resultados consolidados serão divulgados no relatório da Expedição._", "", "IFAG · Sistema FAEG/SENAR");
+  return L.join("\n");
+}
+function foneWpp(t) { let d = String(t || "").replace(/\D/g, "").replace(/^0+/, ""); if (!d) return ""; if (!(d.startsWith("55") && d.length >= 12)) d = "55" + d; return d.length >= 12 ? d : ""; }
+function renderRelatorio() {
+  const txt = textoRelatorio(), tem = amsDe(S.nav.vid).some((a) => calc(amView(a.id)).n > 0);
+  $("#rel-txt").textContent = tem ? txt.replace(/[*_]/g, "") : "O relatório aparece quando houver pelo menos um ponto medido.";
+  $("#rel-share").disabled = $("#rel-copy").disabled = !tem;
+  const f = foneWpp(V().telefone), a = $("#rel-wpp");
+  a.hidden = !(tem && f); if (f) a.href = `https://wa.me/${f}?text=${encodeURIComponent(txt)}`;
+}
+async function fotosDaVisita(max = 6) {
+  const ids = amsDe(S.nav.vid).flatMap((a) => pontosDe(a.id).flatMap((p) => p.fotos || [])).slice(0, max), out = [];
+  for (const [i, id] of ids.entries()) {
+    try {
+      let blob = await idb.get(id);
+      if (!blob && S.db) { const s = await S.db.doc("fotosFull/" + id).get(); const d = s.exists ? s.data().data : ""; if (typeof d === "string" && d.startsWith("data:image/")) blob = await (await fetch(d)).blob(); }
+      if (!blob && S.thumbs[id]) blob = await (await fetch(S.thumbs[id])).blob();
+      if (blob) out.push(new File([blob], `foto-${i + 1}.jpg`, { type: "image/jpeg" }));
+    } catch {}
+  }
+  return out;
 }
 async function abrirFoto(id, thumb, cap) {
   const img = $("#lb-img"); img.src = thumb || ""; $("#lb-cap").textContent = cap || ""; $("#lb").hidden = false;
@@ -2319,6 +2379,18 @@ document.addEventListener("click", async (e) => {
   if (d.usDel && armed(t)) { write("usuarios", d.usDel, null, "delete"); toast("Usuário removido"); }
 
   if (t.id === "btn-nova-am") novaAmostragem(S.nav.vid);
+  if (t.id === "rel-copy") { const txt = textoRelatorio(); try { await navigator.clipboard.writeText(txt); $("#rel-msg").textContent = "Texto copiado."; } catch { $("#rel-msg").textContent = "Selecione o texto acima para copiar."; } }
+  if (t.id === "rel-share") {
+    const txt = textoRelatorio(), msg = $("#rel-msg"), title = "Relatório da visita · Expedição Safra Goiás";
+    if (!navigator.share) { try { await navigator.clipboard.writeText(txt); msg.textContent = "Este aparelho não tem o menu de compartilhar. O texto foi copiado: cole no WhatsApp ou no e-mail."; } catch { msg.textContent = "Copie o texto acima e cole no WhatsApp ou no e-mail."; } return; }
+    try {
+      let files = [];
+      if ($("#rel-fotos").checked) { msg.textContent = "Preparando fotos…"; files = await fotosDaVisita(); }
+      if (files.length && navigator.canShare && navigator.canShare({ files, text: txt })) await navigator.share({ title, text: txt, files });
+      else await navigator.share({ title, text: txt });
+      msg.textContent = "";
+    } catch (err) { msg.textContent = err?.name === "AbortError" ? "" : "Não foi possível abrir o compartilhamento. Use Copiar texto."; }
+  }
   if (t.id === "btn-del-am" && armed(t)) { t.textContent = "Excluir amostragem"; excluirAmostragem(S.nav.aid); S.nav.aid = null; showScr("visita"); toast("Amostragem excluída"); }
   if (t.id === "btn-del-visita" && armed(t)) { t.textContent = "Excluir visita"; excluirVisita(S.nav.vid); S.nav = { scr: "home" }; showScr("home"); toast("Visita excluída"); }
   if (d.delV && armed(t)) { excluirVisita(d.delV); toast("Visita excluída"); renderLista(); }
