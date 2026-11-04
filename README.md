@@ -20,14 +20,14 @@ Projeto Firebase: `expedicao-safra-goias` (plano gratuito **Spark**, sem cartão
 
 ## Perfis
 
-| Perfil | Produtividade | Custos | Fazendas | Painel, Visitas, Acessos |
+| Perfil | Produtividade | Custos | Fazendas | Painel, Visitas, Usuários |
 |---|---|---|---|---|
 | Administrador (`admin`) | ✓ | ✓ | ✓ (importa e edita) | ✓ |
 | Rota da expedição (`rota`) | ✓ | ✓ | consulta e cadastra | — |
 | Técnico · Produtividade (`tec_prod`) | ✓ | — | consulta e cadastra | — |
 | Técnico · Custo de produção (`tec_cus`) | — | ✓ | consulta e cadastra | — |
 
-O administrador cadastra cada pessoa na aba **Acessos** (e-mail, nome, perfil). A pessoa abre o app, toca em **Primeiro acesso**, cria a senha com esse e-mail e entra. Administradores iniciais: `expedicao.safra@ifag.org.br` e `vilmarjr.agronomia@gmail.com`.
+O administrador cadastra cada pessoa na aba **Usuários** (e-mail, nome, perfil). A pessoa abre o app, toca em **Primeiro acesso**, cria a senha com esse e-mail e entra. Administradores iniciais: `expedicao.safra@ifag.org.br` e `vilmarjr.agronomia@gmail.com`.
 
 ## Configuração (uma vez)
 

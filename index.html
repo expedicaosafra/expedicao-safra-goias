@@ -423,7 +423,7 @@ body:not([data-scr="am"]) .mbar, body:not([data-view="coleta"]) .mbar { display:
       <button class="tab" role="tab" id="tab-fazendas" data-v="fazendas" aria-selected="false">Fazendas</button>
       <button class="tab adm" role="tab" id="tab-painel" data-v="painel" aria-selected="false" hidden>Painel</button>
       <button class="tab adm" role="tab" id="tab-visitas" data-v="visitas" aria-selected="false" hidden>Visitas</button>
-      <button class="tab adm" role="tab" id="tab-acessos" data-v="acessos" aria-selected="false" hidden>Acessos</button>
+      <button class="tab adm" role="tab" id="tab-acessos" data-v="acessos" aria-selected="false" hidden>Usuários</button>
     </nav>
     <button type="button" class="status" id="status" data-s="wait" title="Toque para sincronizar agora"><span class="dot"></span><span id="status-t">Conectando…</span></button>
     <button type="button" class="status" id="quem-chip" hidden title="Sair desta conta"><span id="quem-t"></span><span style="opacity:.7">· sair</span></button>
@@ -669,9 +669,9 @@ body:not([data-scr="am"]) .mbar, body:not([data-view="coleta"]) .mbar { display:
   <!-- ================= ACESSOS ================= -->
   <section id="v-acessos" hidden>
     <div class="eyebrow">Administração</div>
-    <h1>Acessos</h1>
+    <h1>Usuários</h1>
     <p class="lede">Cadastre o e-mail de quem vai usar o app e o perfil de cada um. A pessoa abre o app, toca em <b>Primeiro acesso</b>, cria a própria senha com esse e-mail e passa a ver só as telas do seu perfil. As regras do servidor barram o resto.</p>
-    <div class="tbl-wrap" style="margin-top:14px"><table class="t"><thead><tr><th>Perfil</th><th>Produtividade</th><th>Custos</th><th>Fazendas</th><th>Painel e Visitas</th><th>Acessos</th></tr></thead><tbody>
+    <div class="tbl-wrap" style="margin-top:14px"><table class="t"><thead><tr><th>Perfil</th><th>Produtividade</th><th>Custos</th><th>Fazendas</th><th>Painel e Visitas</th><th>Usuários</th></tr></thead><tbody>
       <tr><td>Administrador</td><td>✓</td><td>✓</td><td>✓ cadastra, importa e edita</td><td>✓</td><td>✓</td></tr>
       <tr><td>Rota da expedição</td><td>✓</td><td>✓</td><td>consulta e cadastra</td><td>—</td><td>—</td></tr>
       <tr><td>Técnico de campo · Produtividade</td><td>✓</td><td>—</td><td>consulta e cadastra</td><td>—</td><td>—</td></tr>
@@ -1295,7 +1295,7 @@ function armed(btn) {
 }
 
 function curView() { return document.body.dataset.view; }
-// Perfis de acesso: cada pessoa toca no próprio nome (lista feita pelo administrador na aba Acessos)
+// Perfis de acesso: o administrador cadastra cada pessoa na aba Usuários
 const PAPEIS = {
   admin: { l: "Administrador", views: ["coleta", "custos", "fazendas", "painel", "visitas", "acessos"] },
   rota: { l: "Rota da expedição", views: ["coleta", "custos", "fazendas"] },
@@ -1347,7 +1347,7 @@ function go(v, opts = {}) {
   if (v === "acessos") renderAcessos();
   window.scrollTo({ top: 0 });
 }
-/* ---- aba Acessos ---- */
+/* ---- aba Usuários ---- */
 let usEdit = null;
 function renderAcessos() {
   const us = usuarios().sort((a, b) => Object.keys(PAPEIS).indexOf(a.papel) - Object.keys(PAPEIS).indexOf(b.papel) || String(a.nome).localeCompare(String(b.nome), "pt-BR"));
@@ -2405,7 +2405,7 @@ $("#lg-form").addEventListener("submit", async (e) => {
       perfil = { nome: email === "vilmarjr.agronomia@gmail.com" ? "Vilmar Junior" : "Expedição Safra", papel: "admin", ativo: true, criadoEm: Date.now() };
       try { await FB.criarPerfil(email, perfil); } catch {}
     }
-    if (!perfil) { lgAviso = "Este e-mail ainda não foi liberado pelo administrador. Peça para ele cadastrar você na aba Acessos."; renderLogin(lgAviso); await FB.sair(); return; }
+    if (!perfil) { lgAviso = "Este e-mail ainda não foi liberado pelo administrador. Peça para ele cadastrar você na aba Usuários."; renderLogin(lgAviso); await FB.sair(); return; }
     setMe({ id: email, ...perfil });
     iniciarDados();
     go(quemDepois && viewsDe().includes(quemDepois) ? quemDepois : lsGet("es_view", viewsDe()[0]), { keep: true });
