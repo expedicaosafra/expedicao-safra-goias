@@ -1,0 +1,64 @@
+import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
+import { doc, getDoc, setDoc, updateDoc, getDocs, collection, query, where } from "firebase/firestore";
+import fs from "node:fs";
+const env = await initializeTestEnvironment({ projectId: "demo-teste", firestore: { rules: fs.readFileSync("firestore.rules", "utf8"), host: "127.0.0.1", port: 8085 } });
+await env.withSecurityRulesDisabled(async (c) => { const db = c.firestore();
+  await setDoc(doc(db, "usuarios/adm@x.com"), { nome: "Adm", papel: "admin", ativo: true });
+  await setDoc(doc(db, "usuarios/ana@x.com"), { nome: "Ana", papel: "rota", rota: "Rota Leste", ativo: true });
+  await setDoc(doc(db, "usuarios/bia@x.com"), { nome: "Bia", papel: "rota", rota: "Rota Leste", ativo: true });
+  await setDoc(doc(db, "usuarios/caio@x.com"), { nome: "Caio", papel: "rota", rota: "Rota Oeste", ativo: true });
+  await setDoc(doc(db, "usuarios/tec@x.com"), { nome: "Tec", papel: "tec_prod", ativo: true });
+  await setDoc(doc(db, "usuarios/cus@x.com"), { nome: "Cus", papel: "tec_cus", ativo: true });
+  await setDoc(doc(db, "usuarios/fora@x.com"), { nome: "Fora", papel: "tec_prod", ativo: false });
+  await setDoc(doc(db, "visitas/vLeste"), { prop: "A", vis: "rota:Rota Leste" });
+  await setDoc(doc(db, "visitas/vTec"), { prop: "B", vis: "u:tec@x.com" });
+  await setDoc(doc(db, "propriedades/pTodos"), { nome: "F1", vis: "todos" });
+  await setDoc(doc(db, "propriedades/pTec"), { nome: "F2", vis: "u:tec@x.com" });
+  await setDoc(doc(db, "custos/cCus"), { prop: "C", vis: "u:cus@x.com" });
+});
+const as = (email) => env.authenticatedContext("uid_" + email, { email }).firestore();
+let ok = 0, falha = 0;
+const t = async (nome, p, deveFuncionar) => { try { await (deveFuncionar ? assertSucceeds(p) : assertFails(p)); ok++; } catch (e) { falha++; console.log("FALHOU:", nome, "-", e.message.slice(0, 120)); } };
+const master = as("vilmarjr.agronomia@gmail.com"), adm = as("adm@x.com"), ana = as("ana@x.com"), bia = as("bia@x.com"), caio = as("caio@x.com"), tec = as("tec@x.com"), cus = as("cus@x.com"), fora = as("fora@x.com"), novo = as("novo@x.com");
+// usuários: só master gerencia
+await t("master lista usuários", getDocs(collection(master, "usuarios")), true);
+await t("admin comum NÃO lista usuários", getDocs(collection(adm, "usuarios")), false);
+await t("admin comum NÃO promove ninguém", updateDoc(doc(adm, "usuarios/tec@x.com"), { papel: "admin" }), false);
+await t("master promove", updateDoc(doc(master, "usuarios/tec@x.com"), { papel: "tec_prod" }), true);
+await t("técnico lê o próprio perfil", getDoc(doc(tec, "usuarios/tec@x.com")), true);
+await t("técnico NÃO lê perfil de outro", getDoc(doc(tec, "usuarios/ana@x.com")), false);
+await t("técnico NÃO se promove", updateDoc(doc(tec, "usuarios/tec@x.com"), { papel: "admin" }), false);
+await t("novo cria próprio acesso como tec_prod", setDoc(doc(novo, "usuarios/novo@x.com"), { nome: "Novo", papel: "tec_prod", ativo: true }), true);
+await t("novo NÃO se cria como admin", setDoc(doc(as("x2@x.com"), "usuarios/x2@x.com"), { nome: "X", papel: "admin", ativo: true }), false);
+await t("desativado NÃO se recria", setDoc(doc(fora, "usuarios/fora@x.com"), { nome: "F", papel: "tec_prod", ativo: true }), false);
+// visitas: rota vê a rota, técnico vê o seu
+await t("Ana (Leste) lê visita da Leste", getDoc(doc(ana, "visitas/vLeste")), true);
+await t("Bia (Leste) lê visita da Leste", getDoc(doc(bia, "visitas/vLeste")), true);
+await t("Caio (Oeste) NÃO lê visita da Leste", getDoc(doc(caio, "visitas/vLeste")), false);
+await t("Técnico NÃO lê visita da Leste", getDoc(doc(tec, "visitas/vLeste")), false);
+await t("Ana NÃO lê visita do técnico", getDoc(doc(ana, "visitas/vTec")), false);
+await t("Técnico lê a própria visita", getDoc(doc(tec, "visitas/vTec")), true);
+await t("Admin comum lê tudo", getDoc(doc(adm, "visitas/vTec")), true);
+await t("Caio consulta só as da Oeste", getDocs(query(collection(caio, "visitas"), where("vis", "==", "rota:Rota Oeste"))), true);
+await t("Caio NÃO consulta as da Leste", getDocs(query(collection(caio, "visitas"), where("vis", "==", "rota:Rota Leste"))), false);
+await t("Técnico NÃO consulta tudo sem filtro", getDocs(collection(tec, "visitas")), false);
+await t("Bia completa visita da Leste", updateDoc(doc(bia, "visitas/vLeste"), { obs: "ok" }), true);
+await t("Bia NÃO muda a chave da visita", updateDoc(doc(bia, "visitas/vLeste"), { vis: "u:bia@x.com" }), false);
+await t("Técnico cria visita com a própria chave", setDoc(doc(tec, "visitas/vNova"), { prop: "N", vis: "u:tec@x.com" }), true);
+await t("Técnico NÃO cria visita com chave de outro", setDoc(doc(tec, "visitas/vFalsa"), { prop: "N", vis: "rota:Rota Leste" }), false);
+await t("Técnico de custos NÃO cria visita", setDoc(doc(cus, "visitas/vCus"), { prop: "N", vis: "u:cus@x.com" }), false);
+await t("Desativado NÃO lê nada", getDoc(doc(fora, "visitas/vTec")), false);
+// fazendas
+await t("Técnico lê fazenda importada", getDoc(doc(caio, "propriedades/pTodos")), true);
+await t("Caio NÃO lê fazenda cadastrada pelo técnico", getDoc(doc(caio, "propriedades/pTec")), false);
+await t("Técnico consulta fazendas importadas", getDocs(query(collection(tec, "propriedades"), where("vis", "==", "todos"))), true);
+await t("Técnico NÃO edita fazenda importada", updateDoc(doc(tec, "propriedades/pTodos"), { nome: "X" }), false);
+// custos
+await t("Técnico de custos lê o próprio custo", getDoc(doc(cus, "custos/cCus")), true);
+await t("Técnico de produtividade NÃO lê custos", getDoc(doc(tec, "custos/cCus")), false);
+await t("Ana (rota) NÃO lê custo do técnico", getDoc(doc(ana, "custos/cCus")), false);
+// configurações
+await t("Admin comum altera parâmetros", setDoc(doc(adm, "config/parametros"), { gpv: 2.5 }), true);
+await t("Técnico NÃO altera parâmetros", setDoc(doc(tec, "config/parametros"), { gpv: 3 }), false);
+console.log(`\n${ok} verificações passaram, ${falha} falharam`);
+await env.cleanup(); process.exit(falha ? 1 : 0);

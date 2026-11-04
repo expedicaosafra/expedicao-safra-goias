@@ -1322,10 +1322,13 @@ const PAPEIS = {
 const TODAS_VIEWS = ["coleta", "custos", "fazendas", "painel", "visitas", "acessos"];
 S.me = lsGet("es_me", null);
 const isMaster = () => !!(S.me && S.me.papel === "admin");
+// administrador master: só as contas fundadoras gerenciam usuários (aba Usuários)
+const MASTERS = ["vilmarjr.agronomia@gmail.com", "expedicao.safra@ifag.org.br"];
+const souMaster = () => !!(S.me && MASTERS.includes(S.me.id));
 // chave de visibilidade: a rota inteira compartilha (rota:Rota Leste); os demais veem só o que lançaram (u:email)
 const minhaChave = () => !S.me ? "" : S.me.papel === "rota" ? "rota:" + (S.me.rota || "") : "u:" + S.me.id;
 const chaveDaVisita = (vid) => (S.c.visitas[vid] || {}).vis || minhaChave();
-const viewsDe = () => S.me && PAPEIS[S.me.papel] ? PAPEIS[S.me.papel].views : [];
+const viewsDe = () => S.me && PAPEIS[S.me.papel] ? PAPEIS[S.me.papel].views.filter((v) => v !== "acessos" || souMaster()) : [];
 const grupoDe = (u) => u.papel === "rota" ? (u.rota || "Rota da expedição") : u.papel === "tec_prod" ? "Técnicos de campo" : u.papel === "tec_cus" ? "Técnico de custos" : "Administrador";
 function setMe(u) {
   S.me = u ? { id: u.id, nome: u.nome || u.id, papel: u.papel, rota: u.rota || "" } : null;
@@ -2449,7 +2452,7 @@ let saveCacheT;
 function saveCache() { clearTimeout(saveCacheT); saveCacheT = setTimeout(() => idb.kvSet("srv", S.srv), 2000); }
 let freshT;
 // cada perfil sincroniza só as coleções que pode ler (regras do servidor)
-const colPermitida = (col) => col === "usuarios" ? isMaster() : col === "custos" ? ["admin", "rota", "tec_cus"].includes(S.me?.papel) : true;
+const colPermitida = (col) => col === "usuarios" ? souMaster() : col === "custos" ? ["admin", "rota", "tec_cus"].includes(S.me?.papel) : true;
 function subscribeAll() {
   COLS.filter(colPermitida).forEach((col) => {
     const sub = () => S.db.collection(col).onSnapshot((snap) => {
