@@ -565,7 +565,7 @@ body:not([data-scr="am"]) .mbar, body:not([data-view="coleta"]) .mbar { display:
               <div class="fld"><label for="a_estadio">Estádio fenológico</label><select id="a_estadio" data-bind="a.estadio"></select></div>
               <div class="fld"><label for="a_espacamento">Espaçamento <span class="u">(m)</span></label><input id="a_espacamento" data-bind="a.espacamento" inputmode="decimal" placeholder="0,5"></div>
               <div class="fld"><label for="a_sementes">Sementes/m no plantio</label><input id="a_sementes" data-bind="a.sementes" inputmode="decimal"></div>
-              <div class="fld"><label for="a_areaTotal">Área do talhão <span class="u">(ha)</span></label><input id="a_areaTotal" data-bind="a.areaTotal" inputmode="decimal"></div>
+              <div class="fld"><label for="a_areaTotal">Área total de plantio <span class="u">(ha)</span></label><input id="a_areaTotal" data-bind="a.areaTotal" inputmode="decimal"></div>
               <div class="fld"><label for="a_areaAmostrada">Área amostrada <span class="u">(ha)</span></label><input id="a_areaAmostrada" data-bind="a.areaAmostrada" inputmode="decimal"></div>
               <div class="fld"><label for="a_prodRef">As produtividades abaixo são</label><select id="a_prodRef" data-bind="a.prodRef"><option value="">Deste talhão</option><option value="fazenda">Média da fazenda (produtor não sabe do talhão)</option></select></div>
               <div class="fld"><label for="a_prodPassada">Produtividade safra passada <span class="q">*</span> <span class="u">(sc/ha)</span></label><input id="a_prodPassada" data-bind="a.prodPassada" inputmode="decimal"></div>
@@ -1279,7 +1279,7 @@ function sampleFields(fase) {
 }
 function writePonto(data, aid = S.nav.aid, n = (S.nav.pt || 0) + 1) {
   const id = pid(aid, n), a = S.c.amostragens[aid] || {};
-  const base = S.c.pontos[id] ? {} : { visitaId: a.visitaId, amostragemId: aid, n };
+  const base = S.c.pontos[id] ? {} : { visitaId: a.visitaId, amostragemId: aid, n, vis: chaveDaVisita(a.visitaId) };
   write("pontos", id, { ...base, ...data, equipe: S.equipe || "", autorId: S.uid || null, atualizadoEm: Date.now() });
 }
 function setField(k, f, val) {
@@ -1306,6 +1306,9 @@ const PAPEIS = {
 const TODAS_VIEWS = ["coleta", "custos", "fazendas", "painel", "visitas", "acessos"];
 S.me = lsGet("es_me", null);
 const isMaster = () => !!(S.me && S.me.papel === "admin");
+// chave de visibilidade: a rota inteira compartilha (rota:Rota Leste); os demais veem só o que lançaram (u:email)
+const minhaChave = () => !S.me ? "" : S.me.papel === "rota" ? "rota:" + (S.me.rota || "") : "u:" + S.me.id;
+const chaveDaVisita = (vid) => (S.c.visitas[vid] || {}).vis || minhaChave();
 const viewsDe = () => S.me && PAPEIS[S.me.papel] ? PAPEIS[S.me.papel].views : [];
 const grupoDe = (u) => u.papel === "rota" ? (u.rota || "Rota da expedição") : u.papel === "tec_prod" ? "Técnicos de campo" : u.papel === "tec_cus" ? "Técnico de custos" : "Administrador";
 function setMe(u) {
@@ -1459,7 +1462,7 @@ function lancar(key) {
 }
 function novaVisita(pr) {
   const vid = rid("v");
-  const v = { v: 2, data: today(), criadoEm: Date.now(), criadoPor: S.equipe || "", autorId: S.uid || null };
+  const v = { v: 2, data: today(), criadoEm: Date.now(), criadoPor: S.equipe || "", autorId: S.uid || null, vis: minhaChave() };
   if (pr) Object.assign(v, { propriedadeId: pr.id, prop: pr.nome || "", proprietario: pr.proprietario || "", telefone: pr.telefone || "", mun: pr.municipio || "", reg: REGIAO_SENAR[pr.municipio] || "",
     ...(hasXY(pr) ? { lat: +pr.lat, lon: +pr.lon, geoSrc: "cadastro" } : {}) });
   write("visitas", vid, v, "set");
@@ -1469,7 +1472,7 @@ function novaVisita(pr) {
 }
 function novaAmostragem(vid, silent) {
   const ams = amsDe(vid), prev = ams[ams.length - 1], aid = rid("a");
-  write("amostragens", aid, { visitaId: vid, rotulo: "Talhão " + (ams.length + 1), fase: prev?.fase || "reprodutivo", espacamento: prev?.espacamento || "0,5", nPontos: 6, criadoEm: Date.now(), criadoPor: S.equipe || "" }, "set");
+  write("amostragens", aid, { visitaId: vid, vis: chaveDaVisita(vid), rotulo: "Talhão " + (ams.length + 1), fase: prev?.fase || "reprodutivo", espacamento: prev?.espacamento || "0,5", nPontos: 6, criadoEm: Date.now(), criadoPor: S.equipe || "" }, "set");
   if (!silent) { S.nav.aid = aid; S.nav.pt = 0; showScr("am"); }
 }
 
@@ -1659,14 +1662,14 @@ async function flushFotos() {
       const blob = await idb.get(q.id);
       if (!blob) continue;
       const thumb = S.thumbs[q.id] || await idb.get(q.id + "_t") || "";
-      const rec = { visitaId: q.visitaId, pontoId: q.pontoId, thumb, cap: q.cap || "", criadoEm: Date.now() };
+      const rec = { visitaId: q.visitaId, pontoId: q.pontoId, thumb, cap: q.cap || "", criadoEm: Date.now(), vis: chaveDaVisita(q.visitaId) };
       let up = null;
       if (S.assets) { try { up = await withTimeout(S.assets.upload(blob, { type: "image/jpeg" }), 60000); } catch (e) { if (["timeout", "store_unavailable", "rate_limited"].includes(e?.code)) throw e; } }
       if (up) rec.assetId = up.id;
       else {
         const bmp = await loadBitmap(blob); let max = 1400, qual = 0.7, data = "";
         for (let i = 0; i < 6; i++) { data = await blobToDataURL(await toBlob(draw(bmp, max), qual)); if (data.length < 235000) break; max = Math.round(max * 0.82); qual = Math.max(0.45, qual - 0.06); }
-        await withTimeout(S.db.doc("fotosFull/" + q.id).set({ data, visitaId: q.visitaId }), 30000);
+        await withTimeout(S.db.doc("fotosFull/" + q.id).set({ data, visitaId: q.visitaId, vis: chaveDaVisita(q.visitaId) }), 30000);
       }
       await withTimeout(S.db.doc("fotos/" + q.id).set(rec), 30000);
       await idb.del(q.id);
@@ -1743,7 +1746,7 @@ function excluirAmostragem(aid) {
 const co = (x) => String(r6(+x)).replace(".", ","); // coordenada com 6 casas, vírgula decimal
 const csvQ = (x) => { const s = x === undefined || x === null || (typeof x === "number" && !ok(x)) ? "" : typeof x === "number" ? String(r2(x)).replace(".", ",") : String(x); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 function csvAmostragens() {
-  const head = ["visita_id", "amostragem_id", "data_visita", "regiao_senar", "municipio", "proprietario", "propriedade", "telefone", "fazenda_lat", "fazenda_lon", "talhao", "fase", "cultivar", "data_plantio", "estadio", "espacamento_m", "pmg_g", "area_talhao_ha", "area_amostrada_ha", "prod_referencia", "prod_passada_scha", "prod_esperada_scha", "n_pontos", "plantas_m", "populacao_plha", "vagens_pl", "graos_vagem", "kgha_estimada", "erro_kgha", "kgha_corrigida", "scha_corrigida", "altura_cm", "raiz_cm", "entrenos", "doenca", "doencas", "praga", "pragas", "estresse", "principal_problema", "observacao", "vendeu", "pct_vendido", "preco_rs_sc", "tipo_comprador", "comprador", "cidade_entrega", "uf_entrega", "km_linha_reta", "km_sede_lavoura", "km_estimado", "km_informado_produtor", "equipes", "ocorrencias_por_ponto", "obs_por_ponto"];
+  const head = ["visita_id", "amostragem_id", "data_visita", "regiao_senar", "municipio", "proprietario", "propriedade", "telefone", "fazenda_lat", "fazenda_lon", "talhao", "fase", "cultivar", "data_plantio", "estadio", "espacamento_m", "pmg_g", "area_total_plantio_ha", "area_amostrada_ha", "prod_referencia", "prod_passada_scha", "prod_esperada_scha", "n_pontos", "plantas_m", "populacao_plha", "vagens_pl", "graos_vagem", "kgha_estimada", "erro_kgha", "kgha_corrigida", "scha_corrigida", "altura_cm", "raiz_cm", "entrenos", "doenca", "doencas", "praga", "pragas", "estresse", "principal_problema", "observacao", "vendeu", "pct_vendido", "preco_rs_sc", "tipo_comprador", "comprador", "cidade_entrega", "uf_entrega", "km_linha_reta", "km_sede_lavoura", "km_estimado", "km_informado_produtor", "equipes", "ocorrencias_por_ponto", "obs_por_ponto"];
   const lines = buildRows().map((r) => { const c = calc(r), m = mercado(r); return [r.visitaId, r.id, r.dataVisita, regOf(r), r.mun, r.proprietario, r.prop, r.telefone, hasXY(r) ? co(r.lat) : "", hasXY(r) ? co(r.lon) : "", r.rotulo, r.fase, r.cultivar, r.dataPlantio, r.estadio, c.esp, c.pmgG, r.areaTotal, r.areaAmostrada, r.prodRef === "fazenda" ? "media da fazenda" : "talhao", r.prodPassada, r.prodEsp, c.n, c.plantasM, c.pop, c.vag, c.gpv, c.kgHa, c.erro, c.corr, c.sc, c.altura, c.raiz, c.entrenos, r.doenca, r.doencaQual, r.praga, r.pragaQual, r.estresse, r.problema, r.obs, r.vendeu, m.pct, m.preco, r.tipoComprador, r.comprador, r.entrega, m.d?.uf, m.linha, m.sede, m.est, m.informado ? "sim" : "nao", r.equipe,
     r.amostras.map((a) => (a.tags || []).length ? `P${a.n}: ${a.tags.join(", ")}${a.doencaQual ? " – doença: " + a.doencaQual : ""}${a.pragaQual ? " – praga: " + a.pragaQual : ""}` : "").filter(Boolean).join(" | "), r.amostras.map((a) => a.obs ? `P${a.n}: ${a.obs}` : "").filter(Boolean).join(" | ")].map(csvQ).join(";"); });
   return "﻿" + [head.join(";"), ...lines].join("\n");
@@ -1786,7 +1789,8 @@ function fzSalvar() {
   if (!isMaster()) { delete data.rota; delete data.ordem; if (!fzEdit) data.rota = false; data.criadoPor = S.equipe || ""; }
   let id = fzEdit;
   if (!id) { const dup = Object.entries(S.c.propriedades).find(([, p]) => norm(p.nome) === norm(nome) && (p.municipio || "") === data.municipio); if (dup) { id = dup[0]; toast("Essa fazenda já estava na lista"); } }
-  if (id) write("propriedades", id, data); else { id = rid("fz"); write("propriedades", id, { ...data, criadoEm: Date.now() }, "set"); toast("Fazenda cadastrada"); }
+  if (id && (isMaster() || S.c.propriedades[id]?.vis === minhaChave())) write("propriedades", id, data);
+  else if (!id) { id = rid("fz"); write("propriedades", id, { ...data, criadoEm: Date.now(), vis: isMaster() ? "todos" : minhaChave() }, "set"); toast("Fazenda cadastrada"); }
   const depois = fzEdit ? null : S.after; S.after = null; fzLimpar();
   if (depois === "cu") cuFarm("cad:" + id); else if (depois === "prod") { go("coleta"); lancar("cad:" + id); }
 }
@@ -1821,7 +1825,7 @@ function fzImportar() {
   const exist = new Map(Object.entries(S.c.propriedades).map(([id, p]) => [norm(p.nome) + "|" + norm(p.municipio), id]));
   let novas = 0, atual = 0;
   fzRows.forEach((r) => { const k = norm(r.nome) + "|" + norm(r.municipio); const id = exist.get(k); const data = { ...r, atualizadoEm: Date.now() }; if (r.lat == null) { delete data.lat; delete data.lon; }
-    if (id) { write("propriedades", id, data); atual++; } else { write("propriedades", rid("fz"), { ...data, criadoEm: Date.now() }, "set"); novas++; } });
+    if (id) { write("propriedades", id, { ...data, vis: "todos" }); atual++; } else { write("propriedades", rid("fz"), { ...data, criadoEm: Date.now(), vis: "todos" }, "set"); novas++; } });
   toast(`${novas} fazenda(s) nova(s) e ${atual} atualizada(s)`); $("#fz_paste").value = ""; fzPreview(); renderFazendas();
 }
 
@@ -2082,7 +2086,7 @@ function renderCuDyn() {
 }
 function novaEntrevista(pr) {
   const id = rid("cu");
-  const c = { v: 3, data: today(), criadoEm: Date.now(), equipe: S.equipe || "", autorId: S.uid || null, prodBase: "produtor", safra: "2026/27",
+  const c = { v: 3, data: today(), criadoEm: Date.now(), equipe: S.equipe || "", autorId: S.uid || null, vis: minhaChave(), prodBase: "produtor", safra: "2026/27",
     rh_perm: CARGOS.map((d) => ({ d })), rh_temp: [{ d: "Safristas" }, { d: "Diaristas" }], ret: [{ d: "Proprietário 1", n: "12" }],
     ins_pre: [{ d: "Calcário", u: "t", n: "1" }, { d: "Dessecação (herbicida)", u: "L", n: "1" }],
     ins_plantio: [{ d: "Semente", u: "kg", n: "1" }, { d: "Tratamento de sementes", u: "L", n: "1" }, { d: "Fertilizante de plantio", u: "kg", n: "1" }],
@@ -2357,7 +2361,7 @@ function subscribeAll() {
     }, () => { setStatus("off"); setTimeout(sub, 15000); });
     sub();
   });
-  try {
+  if (isMaster()) try {
     S.db.collection("fotos").orderBy("criadoEm", "desc").limit(12).onSnapshot((snap) => {
       S.recentFotos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       S.recentFotos.forEach((f) => { if (f.thumb) S.thumbs[f.id] = f.thumb; });
@@ -2385,13 +2389,27 @@ function iniciarDados() {
     if (!snap.exists || snap.data().ativo === false) { toast("Seu acesso foi desativado pelo administrador."); return sairConta(); }
     const u = snap.data();
     if (u.papel !== S.me.papel || u.nome !== S.me.nome || (u.rota || "") !== S.me.rota) {
-      const virouAdmin = u.papel === "admin" && S.me.papel !== "admin";
+      const mudouEscopo = u.papel !== S.me.papel || (u.rota || "") !== S.me.rota;
       setMe({ id: S.me.id, ...u }); go(curView(), { keep: true });
       toast(`Seu perfil agora é: ${PAPEIS[u.papel]?.l || u.papel}`);
-      if (virouAdmin) location.reload(); // passa a sincronizar também usuários e custos
+      if (mudouEscopo) setTimeout(() => location.reload(), 1200); // passa a sincronizar o que o novo perfil pode ver
     }
   }, () => {});
+  // quem não é administrador sincroniza só o que pode ver (a fazenda importada é de todos)
+  FB.setEscopo(isMaster() ? null : (col) => col === "propriedades" ? ["todos", minhaChave()] : [minhaChave()]);
   subscribeAll(); flush();
+  if (isMaster()) setTimeout(marcarVisibilidade, 8000);
+}
+// dados gravados antes da regra de visibilidade recebem a chave (fazendas importadas: todos; o resto: administrador)
+function marcarVisibilidade() {
+  if (!S.loaded) return setTimeout(marcarVisibilidade, 5000);
+  const adm = minhaChave(); let n = 0;
+  Object.entries(S.c.propriedades).forEach(([id, p]) => { if (!p.vis) { write("propriedades", id, { vis: p.criadoPor ? adm : "todos" }); n++; } });
+  Object.entries(S.c.visitas).forEach(([id, v]) => { if (!v.vis) { write("visitas", id, { vis: adm }); n++; } });
+  Object.entries(S.c.amostragens).forEach(([id, a]) => { if (!a.vis) { write("amostragens", id, { vis: (S.c.visitas[a.visitaId] || {}).vis || adm }); n++; } });
+  Object.entries(S.c.pontos).forEach(([id, p]) => { if (!p.vis) { write("pontos", id, { vis: (S.c.visitas[p.visitaId] || {}).vis || adm }); n++; } });
+  Object.entries(S.c.custos).forEach(([id, c]) => { if (!c.vis) { write("custos", id, { vis: adm }); n++; } });
+  if (n) console.info("visibilidade ajustada em", n, "registros");
 }
 $("#lg-form").addEventListener("submit", async (e) => {
   e.preventDefault();

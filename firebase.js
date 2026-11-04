@@ -81,6 +81,8 @@ function collRef(col) {
     limit: (n) => plainQuery(col, [limit(n)]),
     // assinatura incremental: entrega sempre a coleção inteira, baixando só o que mudou
     onSnapshot(next, fail) {
+      const chaves = escopo ? escopo(col) : null;
+      if (chaves) return assinarPorChave(col, chaves, next, fail);
       let vivo = true, unsub = null, mapa = {}, since = 0;
       const chave = (auth.currentUser?.uid || "anon") + ":" + col;
       const emitir = (changes = []) => {
@@ -112,6 +114,34 @@ function collRef(col) {
 }
 
 const db = { doc: docRef, collection: collRef };
+let escopo = null; // null = tudo (administrador); senão função coleção -> chaves de visibilidade
+
+// usuários de campo: uma assinatura por chave (vis == chave), exigida pelas regras do servidor
+function assinarPorChave(col, chaves, next, fail) {
+  let vivo = true; const partes = {}, unsubs = [];
+  const chave = (auth.currentUser?.uid || "anon") + ":" + col + ":" + chaves.join("|");
+  const emitir = (changes = []) => {
+    const mapa = Object.assign({}, ...Object.values(partes));
+    const docs = Object.entries(mapa).map(([id, d]) => snapDoc(id, d));
+    next({ docs, size: docs.length, empty: !docs.length, docChanges: () => changes, metadata: {} });
+  };
+  (async () => {
+    const c = await cache.get(chave);
+    if (!vivo) return;
+    if (c && c.partes) { Object.assign(partes, c.partes); emitir(); }
+    let salvarT = null;
+    chaves.forEach((k) => {
+      unsubs.push(onSnapshot(query(collection(fs, col), where("vis", "==", k)), (s) => {
+        const m = {}, changes = [];
+        s.docs.forEach((d) => { const x = d.data(); if (!x._del) m[d.id] = limpar(x); });
+        s.docChanges().forEach((ch) => { if (ch.type !== "removed" && !ch.doc.data()._del) changes.push({ type: ch.type, doc: snapDoc(ch.doc.id, limpar(ch.doc.data())) }); });
+        partes[k] = m; emitir(changes);
+        clearTimeout(salvarT); salvarT = setTimeout(() => cache.set(chave, { partes }), 1500);
+      }, (e) => { if (vivo && fail) fail(erro(e)); }));
+    });
+  })();
+  return () => { vivo = false; unsubs.forEach((u) => u()); };
+}
 
 // ---- usuário, downloads ----
 const user = {
@@ -147,6 +177,7 @@ const fb = {
   },
   async criarPerfil(email, data) { await setDoc(doc(fs, "usuarios", email.toLowerCase()), { ...data, _t: serverTimestamp() }); },
   limparCache: () => cache.clear(),
+  setEscopo: (f) => { escopo = f; },
 };
 
 window.__fbResolve(fb);

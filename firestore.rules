@@ -19,6 +19,15 @@ service cloud.firestore {
     function algum() { return admin() || cadastrado(); }
     function produtividade() { return admin() || papel() in ['rota', 'tec_prod']; }
     function custos() { return admin() || papel() in ['rota', 'tec_cus']; }
+    // visibilidade: a rota compartilha os dados entre si (rota:<nome da rota>); os demais veem só o que lançaram (u:<email>)
+    function minha(v) {
+      return cadastrado() && (
+        (papel() == 'rota' && v == 'rota:' + get(perfilPath()).data.get('rota', ''))
+        || (papel() != 'rota' && v == 'u:' + email()));
+    }
+    function ve(v) { return admin() || minha(v); }
+    function criaComChave() { return admin() || minha(request.resource.data.vis); }
+    function alteraMantendoChave() { return admin() || (minha(resource.data.vis) && request.resource.data.vis == resource.data.vis); }
 
     // cada pessoa pode criar o próprio acesso, sempre como técnico de produtividade;
     // mudar perfil, desativar ou remover é só com o administrador
@@ -34,17 +43,20 @@ service cloud.firestore {
       allow read: if algum();
       allow write: if admin();
     }
-    // fazendas: todos consultam e cadastram; a importação e a edição em massa ficam com o administrador no app
+    // fazendas importadas pelo administrador (vis = todos) aparecem para todos; as cadastradas em campo, só para quem cadastrou
     match /propriedades/{id} {
-      allow read, write: if algum();
+      allow read: if admin() || (cadastrado() && (resource.data.vis == 'todos' || minha(resource.data.vis)));
+      allow create: if criaComChave();
+      allow update: if alteraMantendoChave();
+      allow delete: if admin();
     }
-    // coleta de produtividade (visitas, amostragens, pontos e fotos): leitura para todos os cadastrados
-    match /visitas/{id} { allow read: if algum(); allow write: if produtividade(); }
-    match /amostragens/{id} { allow read: if algum(); allow write: if produtividade(); }
-    match /pontos/{id} { allow read: if algum(); allow write: if produtividade(); }
-    match /fotos/{id} { allow read: if algum(); allow write: if produtividade(); }
-    match /fotosFull/{id} { allow read: if algum(); allow write: if produtividade(); }
-    // custo de produção: só administrador, rota e técnicos de custo
-    match /custos/{id} { allow read, write: if custos(); }
+    // coleta de produtividade: cada um vê só o seu (ou o da sua rota)
+    match /visitas/{id} { allow read: if ve(resource.data.vis); allow create: if produtividade() && criaComChave(); allow update: if produtividade() && alteraMantendoChave(); allow delete: if admin(); }
+    match /amostragens/{id} { allow read: if ve(resource.data.vis); allow create: if produtividade() && criaComChave(); allow update: if produtividade() && alteraMantendoChave(); allow delete: if admin(); }
+    match /pontos/{id} { allow read: if ve(resource.data.vis); allow create: if produtividade() && criaComChave(); allow update: if produtividade() && alteraMantendoChave(); allow delete: if admin(); }
+    match /fotos/{id} { allow read: if ve(resource.data.vis); allow create: if produtividade() && criaComChave(); allow update: if produtividade() && alteraMantendoChave(); allow delete: if admin(); }
+    match /fotosFull/{id} { allow read: if ve(resource.data.vis); allow create: if produtividade() && criaComChave(); allow update: if produtividade() && alteraMantendoChave(); allow delete: if admin(); }
+    // custo de produção: só administrador, rota e técnicos de custo, cada um com os seus
+    match /custos/{id} { allow read: if custos() && ve(resource.data.vis); allow create: if custos() && criaComChave(); allow update: if custos() && alteraMantendoChave(); allow delete: if admin(); }
   }
 }
