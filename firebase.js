@@ -142,10 +142,10 @@ const fb = {
   // perfil do usuário (lista feita pelo administrador): usuarios/{email}
   async perfil(email) {
     const s = await Promise.race([getDoc(doc(fs, "usuarios", email.toLowerCase())), new Promise((_, rej) => setTimeout(() => rej({ code: "timeout" }), 8000))]);
-    if (!s.exists()) return null;
-    const d = s.data(); return d._del || d.ativo === false ? null : limpar(d);
+    if (!s.exists()) return { estado: "ausente" };
+    const d = s.data(); return d._del || d.ativo === false ? { estado: "inativo" } : { estado: "ok", dados: limpar(d) };
   },
-  async criarPerfil(email, data) { await setDoc(doc(fs, "usuarios", email.toLowerCase()), { ...data, _t: serverTimestamp() }, { merge: true }); },
+  async criarPerfil(email, data) { await setDoc(doc(fs, "usuarios", email.toLowerCase()), { ...data, _t: serverTimestamp() }); },
   limparCache: () => cache.clear(),
 };
 

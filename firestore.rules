@@ -1,6 +1,6 @@
 rules_version = '2';
 // Regras do Firestore da Expedição Safra Goiás.
-// Cada pessoa precisa estar logada E cadastrada pelo administrador em usuarios/{email}.
+// Cada pessoa precisa estar logada e ter um perfil em usuarios/{email} (criado por ela mesma como tec_prod, ou pelo administrador).
 // Perfis: admin · rota (rota da expedição) · tec_prod (técnico de produtividade) · tec_cus (técnico de custos)
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -20,9 +20,15 @@ service cloud.firestore {
     function produtividade() { return admin() || papel() in ['rota', 'tec_prod']; }
     function custos() { return admin() || papel() in ['rota', 'tec_cus']; }
 
+    // cada pessoa pode criar o próprio acesso, sempre como técnico de produtividade;
+    // mudar perfil, desativar ou remover é só com o administrador
     match /usuarios/{id} {
       allow read: if admin() || (logado() && id == email());
-      allow write: if admin();
+      allow create: if admin() || (logado() && id == email()
+        && request.resource.data.papel == 'tec_prod'
+        && request.resource.data.get('ativo', true) == true
+        && !('_del' in request.resource.data));
+      allow update, delete: if admin();
     }
     match /config/{id} {
       allow read: if algum();

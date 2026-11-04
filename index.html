@@ -443,6 +443,7 @@ body:not([data-scr="am"]) .mbar, body:not([data-view="coleta"]) .mbar { display:
     <form class="sec" id="lg-form" style="margin-top:16px" novalidate>
       <div class="fld"><label for="lg_email">E-mail</label><input id="lg_email" type="email" autocomplete="username" inputmode="email"></div>
       <div class="fld"><label for="lg_senha">Senha</label><input id="lg_senha" type="password" autocomplete="current-password"></div>
+      <div class="fld" id="lg-nome-f" hidden><label for="lg_nome">Seu nome</label><input id="lg_nome" autocomplete="name" placeholder="Nome e sobrenome"></div>
       <div class="fld" id="lg-senha2-f" hidden><label for="lg_senha2">Repita a senha</label><input id="lg_senha2" type="password" autocomplete="new-password"></div>
       <div class="actions"><button class="btn pri" id="lg-ok" type="submit">Entrar</button><span class="err" id="lg-err"></span></div>
       <p class="legend" id="lg-links"><button type="button" class="btn sm ghost" id="lg-modo">Primeiro acesso: criar minha senha</button> <button type="button" class="btn sm ghost" id="lg-esqueci">Esqueci minha senha</button></p>
@@ -670,7 +671,7 @@ body:not([data-scr="am"]) .mbar, body:not([data-view="coleta"]) .mbar { display:
   <section id="v-acessos" hidden>
     <div class="eyebrow">Administração</div>
     <h1>Usuários</h1>
-    <p class="lede">Cadastre o e-mail de quem vai usar o app e o perfil de cada um. A pessoa abre o app, toca em <b>Primeiro acesso</b>, cria a própria senha com esse e-mail e passa a ver só as telas do seu perfil. As regras do servidor barram o resto.</p>
+    <p class="lede">Quem cria o próprio acesso entra como <b>Técnico de campo · Produtividade</b> (lança visitas e cadastra fazendas). Para dar outro perfil, toque em <b>Editar</b> na lista abaixo. Você também pode cadastrar alguém antes, pelo e-mail. Quem for removido não consegue entrar de novo.</p>
     <div class="tbl-wrap" style="margin-top:14px"><table class="t"><thead><tr><th>Perfil</th><th>Produtividade</th><th>Custos</th><th>Fazendas</th><th>Painel e Visitas</th><th>Usuários</th></tr></thead><tbody>
       <tr><td>Administrador</td><td>✓</td><td>✓</td><td>✓ cadastra, importa e edita</td><td>✓</td><td>✓</td></tr>
       <tr><td>Rota da expedição</td><td>✓</td><td>✓</td><td>consulta e cadastra</td><td>—</td><td>—</td></tr>
@@ -1321,8 +1322,8 @@ const usuarios = () => Object.entries(S.c.usuarios).map(([id, u]) => ({ id, ...u
 function renderLogin(msg) {
   const criar = lgModo === "criar";
   $("#lg-h1").textContent = criar ? "Primeiro acesso" : "Entrar";
-  $("#lg-lede").textContent = criar ? "Crie sua senha usando o e-mail que o administrador cadastrou para você." : "Use o e-mail cadastrado pelo administrador da Expedição.";
-  $("#lg-senha2-f").hidden = !criar; $("#lg-ok").textContent = criar ? "Criar senha e entrar" : "Entrar";
+  $("#lg-lede").textContent = criar ? "Crie seu acesso com seu e-mail. Você já pode lançar visitas e cadastrar fazendas; o administrador libera outras funções depois." : "Entre com o e-mail e a senha do seu acesso.";
+  $("#lg-senha2-f").hidden = $("#lg-nome-f").hidden = !criar; $("#lg-ok").textContent = criar ? "Criar senha e entrar" : "Entrar";
   $("#lg-modo").textContent = criar ? "Já tenho senha: entrar" : "Primeiro acesso: criar minha senha";
   $("#lg_senha").autocomplete = criar ? "new-password" : "current-password";
   $("#lg-err").textContent = msg || "";
@@ -1353,7 +1354,7 @@ function renderAcessos() {
   const us = usuarios().sort((a, b) => Object.keys(PAPEIS).indexOf(a.papel) - Object.keys(PAPEIS).indexOf(b.papel) || String(a.nome).localeCompare(String(b.nome), "pt-BR"));
   $("#us-rota-f").hidden = $("#us_papel").value !== "rota";
   $("#us-n").textContent = `${us.length} usuário(s)`;
-  $("#us-lista").innerHTML = us.length ? `<table class="t"><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Rota</th><th>Observação</th><th></th></tr></thead><tbody>${us.map((u) => `<tr><td>${esc(u.nome)}</td><td>${esc(u.id)}</td><td>${esc(PAPEIS[u.papel]?.l || u.papel)}</td><td>${u.papel === "rota" ? esc(u.rota || "") : "—"}</td><td>${esc(u.obs || "")}</td><td><button class="btn sm ghost" type="button" data-us-edit="${esc(u.id)}">Editar</button>${u.id === S.me?.id ? "" : ` <button class="btn sm ghost danger" type="button" data-us-del="${esc(u.id)}">Remover</button>`}</td></tr>`).join("")}</tbody></table>` : `<p class="legend">Nenhum usuário.</p>`;
+  $("#us-lista").innerHTML = us.length ? `<table class="t"><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Rota</th><th>Observação</th><th></th></tr></thead><tbody>${us.map((u) => `<tr><td>${esc(u.nome)}</td><td>${esc(u.id)}</td><td>${esc(PAPEIS[u.papel]?.l || u.papel)}${u.autoCadastro && u.papel === "tec_prod" ? ` <span class="pill run">novo</span>` : ""}</td><td>${u.papel === "rota" ? esc(u.rota || "") : "—"}</td><td>${esc(u.obs || "")}</td><td><button class="btn sm ghost" type="button" data-us-edit="${esc(u.id)}">Editar</button>${u.id === S.me?.id ? "" : ` <button class="btn sm ghost danger" type="button" data-us-del="${esc(u.id)}">Remover</button>`}</td></tr>`).join("")}</tbody></table>` : `<p class="legend">Nenhum usuário.</p>`;
 }
 function usLimpar() { usEdit = null; $("#us_email").value = ""; $("#us_email").disabled = false; $("#us_nome").value = ""; $("#us_obs").value = ""; $("#us_papel").value = "rota"; $("#us-form-t").textContent = "Incluir usuário"; $("#us-cancel").hidden = true; $("#us-err").textContent = ""; renderAcessos(); }
 function showScr(scr) {
@@ -1370,7 +1371,7 @@ function showScr(scr) {
 function onData(col, local) {
   if (col === "usuarios" && S.me && S.got.usuarios) {
     const u = S.c.usuarios[S.me.id];
-    if (!u || u.ativo === false) { toast("Seu acesso foi removido pelo administrador."); return sairConta(); }
+    if (!u || u.ativo === false) { toast("Seu acesso foi desativado pelo administrador."); return sairConta(); }
     if (u.papel !== S.me.papel || u.nome !== S.me.nome || (u.rota || "") !== S.me.rota) { setMe({ id: S.me.id, ...u }); go(curView(), { keep: true }); }
   }
   const v = curView();
@@ -2378,13 +2379,27 @@ function iniciarDados() {
     if (S.nav.scr === "am" && curView() === "coleta") renderCalc();
     if (curView() === "painel") schedulePainel();
   }, () => {});
+  // acompanha o próprio perfil: promoção, mudança de perfil ou remoção chegam na hora
+  S.db.doc("usuarios/" + S.me.id).onSnapshot((snap) => {
+    if (!S.me) return;
+    if (!snap.exists || snap.data().ativo === false) { toast("Seu acesso foi desativado pelo administrador."); return sairConta(); }
+    const u = snap.data();
+    if (u.papel !== S.me.papel || u.nome !== S.me.nome || (u.rota || "") !== S.me.rota) {
+      const virouAdmin = u.papel === "admin" && S.me.papel !== "admin";
+      setMe({ id: S.me.id, ...u }); go(curView(), { keep: true });
+      toast(`Seu perfil agora é: ${PAPEIS[u.papel]?.l || u.papel}`);
+      if (virouAdmin) location.reload(); // passa a sincronizar também usuários e custos
+    }
+  }, () => {});
   subscribeAll(); flush();
 }
 $("#lg-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = $("#lg_email").value.trim(), senha = $("#lg_senha").value;
   if (!email || !senha) return renderLogin("Preencha e-mail e senha.");
+  if (lgModo === "criar" && !$("#lg_nome").value.trim()) return renderLogin("Informe seu nome.");
   if (lgModo === "criar" && senha !== $("#lg_senha2").value) return renderLogin("As senhas não conferem.");
+  if (lgModo === "criar") lsSet("es_nome_novo", $("#lg_nome").value.trim());
   $("#lg-ok").disabled = true; renderLogin(lgModo === "criar" ? "Criando sua senha…" : "Entrando…");
   try { const fb = await window.__fbReady; if (lgModo === "criar") await fb.criarSenha(email, senha); else await fb.entrar(email, senha); }
   catch (err) { renderLogin(msgAuth(err)); }
@@ -2398,14 +2413,19 @@ $("#lg-form").addEventListener("submit", async (e) => {
   FB.onAuth(async (fu) => {
     if (!fu) { if (S.me) { setMe(null); go(curView(), { keep: true }); } renderLogin(lgAviso); lgAviso = ""; return; }
     S.uid = fu.uid; const email = (fu.email || "").toLowerCase();
-    let perfil = null;
-    try { perfil = await FB.perfil(email); }
-    catch { if (S.me && S.me.id === email) perfil = { ...S.me }; } // sem internet: usa o perfil já guardado no aparelho
-    if (!perfil && ["expedicao.safra@ifag.org.br", "vilmarjr.agronomia@gmail.com"].includes(email)) {
-      perfil = { nome: email === "vilmarjr.agronomia@gmail.com" ? "Vilmar Junior" : "Expedição Safra", papel: "admin", ativo: true, criadoEm: Date.now() };
-      try { await FB.criarPerfil(email, perfil); } catch {}
+    let perfil = null, estado = "erro";
+    try { const r = await FB.perfil(email); estado = r.estado; perfil = r.dados || null; }
+    catch { if (S.me && S.me.id === email) { perfil = { ...S.me }; estado = "ok"; } } // sem internet: usa o perfil já guardado no aparelho
+    if (estado === "inativo") { lgAviso = "Seu acesso foi desativado pelo administrador da Expedição."; renderLogin(lgAviso); await FB.sair(); return; }
+    if (estado === "ausente") {
+      // novo acesso: fundadores entram como administradores; os demais como técnico de produtividade
+      const fundador = ["expedicao.safra@ifag.org.br", "vilmarjr.agronomia@gmail.com"].includes(email);
+      const nome = fundador ? (email === "vilmarjr.agronomia@gmail.com" ? "Vilmar Junior" : "Expedição Safra") : (lsGet("es_nome_novo", "") || email.split("@")[0]);
+      perfil = { nome, papel: fundador ? "admin" : "tec_prod", rota: "", ativo: true, criadoEm: Date.now(), autoCadastro: !fundador };
+      try { await FB.criarPerfil(email, perfil); lsSet("es_nome_novo", ""); }
+      catch { lgAviso = "Não foi possível criar seu acesso agora. Verifique a internet e tente entrar de novo."; renderLogin(lgAviso); await FB.sair(); return; }
     }
-    if (!perfil) { lgAviso = "Este e-mail ainda não foi liberado pelo administrador. Peça para ele cadastrar você na aba Usuários."; renderLogin(lgAviso); await FB.sair(); return; }
+    if (!perfil) { lgAviso = "Não foi possível verificar seu acesso. Conecte-se à internet e tente de novo."; renderLogin(lgAviso); await FB.sair(); return; }
     setMe({ id: email, ...perfil });
     iniciarDados();
     go(quemDepois && viewsDe().includes(quemDepois) ? quemDepois : lsGet("es_view", viewsDe()[0]), { keep: true });
