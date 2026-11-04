@@ -687,7 +687,7 @@ body:not([data-scr="am"]) .mbar, body:not([data-view="coleta"]) .mbar { display:
   <section id="v-acessos" hidden>
     <div class="eyebrow">Administração</div>
     <h1>Usuários</h1>
-    <p class="lede">Quem cria o próprio acesso entra como <b>Técnico de campo · Produtividade</b> (lança visitas e cadastra fazendas). Para dar outro perfil, toque em <b>Editar</b> na lista abaixo. Você também pode cadastrar alguém antes, pelo e-mail. Quem for removido não consegue entrar de novo.</p>
+    <p class="lede">Quem cria o próprio acesso entra como <b>Técnico de campo · Produtividade</b> (lança visitas e cadastra fazendas). Para dar outro perfil, toque em <b>Editar</b> na lista abaixo. Se alguém esquecer a senha, toque em <b>Redefinir senha</b>: a pessoa recebe no e-mail um link para criar uma nova (ninguém, nem o administrador, consegue ver as senhas). Você também pode cadastrar alguém antes, pelo e-mail. Quem for removido não consegue entrar de novo.</p>
     <div class="tbl-wrap" style="margin-top:14px"><table class="t"><thead><tr><th>Perfil</th><th>Produtividade</th><th>Custos</th><th>Fazendas</th><th>Painel e Visitas</th><th>Usuários</th></tr></thead><tbody>
       <tr><td>Administrador</td><td>✓</td><td>✓</td><td>✓ cadastra, importa e edita</td><td>✓</td><td>✓</td></tr>
       <tr><td>Rota da expedição</td><td>✓</td><td>✓</td><td>consulta e cadastra</td><td>—</td><td>—</td></tr>
@@ -1373,7 +1373,7 @@ function renderAcessos() {
   const us = usuarios().sort((a, b) => Object.keys(PAPEIS).indexOf(a.papel) - Object.keys(PAPEIS).indexOf(b.papel) || String(a.nome).localeCompare(String(b.nome), "pt-BR"));
   $("#us-rota-f").hidden = $("#us_papel").value !== "rota";
   $("#us-n").textContent = `${us.length} usuário(s)`;
-  $("#us-lista").innerHTML = us.length ? `<table class="t"><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Rota</th><th>Observação</th><th></th></tr></thead><tbody>${us.map((u) => `<tr><td>${esc(u.nome)}</td><td>${esc(u.id)}</td><td>${esc(PAPEIS[u.papel]?.l || u.papel)}${u.autoCadastro && u.papel === "tec_prod" ? ` <span class="pill run">novo</span>` : ""}</td><td>${u.papel === "rota" ? esc(u.rota || "") : "—"}</td><td>${esc(u.obs || "")}</td><td><button class="btn sm ghost" type="button" data-us-edit="${esc(u.id)}">Editar</button>${u.id === S.me?.id ? "" : ` <button class="btn sm ghost danger" type="button" data-us-del="${esc(u.id)}">Remover</button>`}</td></tr>`).join("")}</tbody></table>` : `<p class="legend">Nenhum usuário.</p>`;
+  $("#us-lista").innerHTML = us.length ? `<table class="t"><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Rota</th><th>Observação</th><th></th></tr></thead><tbody>${us.map((u) => `<tr><td>${esc(u.nome)}</td><td>${esc(u.id)}</td><td>${esc(PAPEIS[u.papel]?.l || u.papel)}${u.autoCadastro && u.papel === "tec_prod" ? ` <span class="pill run">novo</span>` : ""}</td><td>${u.papel === "rota" ? esc(u.rota || "") : "—"}</td><td>${esc(u.obs || "")}</td><td><button class="btn sm ghost" type="button" data-us-edit="${esc(u.id)}">Editar</button> <button class="btn sm ghost" type="button" data-us-reset="${esc(u.id)}">Redefinir senha</button>${u.id === S.me?.id ? "" : ` <button class="btn sm ghost danger" type="button" data-us-del="${esc(u.id)}">Remover</button>`}</td></tr>`).join("")}</tbody></table>` : `<p class="legend">Nenhum usuário.</p>`;
 }
 function usLimpar() { usEdit = null; $("#us_email").value = ""; $("#us_email").disabled = false; $("#us_nome").value = ""; $("#us_obs").value = ""; $("#us_papel").value = "rota"; $("#us-form-t").textContent = "Incluir usuário"; $("#us-cancel").hidden = true; $("#us-err").textContent = ""; renderAcessos(); }
 function showScr(scr) {
@@ -2399,6 +2399,12 @@ document.addEventListener("click", async (e) => {
   }
   if (t.id === "us-cancel") usLimpar();
   if (d.usEdit) { const u = S.c.usuarios[d.usEdit]; if (u) { usEdit = d.usEdit; $("#us_email").value = d.usEdit; $("#us_email").disabled = true; $("#us_nome").value = u.nome || ""; $("#us_papel").value = u.papel; $("#us_rota").value = u.rota || "Rota Leste"; $("#us_obs").value = u.obs || ""; $("#us-form-t").textContent = "Editar usuário"; $("#us-cancel").hidden = false; renderAcessos(); window.scrollTo({ top: 0, behavior: "smooth" }); } }
+  if (d.usReset && armed(t)) {
+    t.textContent = "Enviando…";
+    try { await FB.esqueci(d.usReset); toast(`Link para criar nova senha enviado para ${d.usReset}. Peça para olhar também o spam.`); }
+    catch (err) { toast(err?.code === "auth/user-not-found" ? "Essa pessoa ainda não criou senha: ela deve usar Primeiro acesso." : "Não foi possível enviar agora. Verifique a internet."); }
+    t.textContent = "Redefinir senha";
+  }
   if (d.usDel && armed(t)) { write("usuarios", d.usDel, null, "delete"); toast("Usuário removido"); }
 
   if (t.id === "btn-nova-am") novaAmostragem(S.nav.vid);
