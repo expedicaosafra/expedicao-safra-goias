@@ -1,6 +1,6 @@
 // Faz o app abrir sem internet: guarda os arquivos do app e da biblioteca do Firebase no aparelho.
 // Arquivos do app: usa a cópia guardada e atualiza em segundo plano (a versão nova vale na próxima abertura).
-const CACHE = "expedicao-v11";
+const CACHE = "expedicao-v12";
 const APP = ["./", "index.html", "firebase.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "placa.webp", "ifag.png", "ifag-branco.png", "topo.webp", "linhas.png", "insumos.json"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(APP)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
