@@ -120,6 +120,10 @@ main > section { position: relative; z-index: 1; }
 .combo-list li small { color: var(--muted); }
 .combo-list li[aria-selected="true"], .combo-list li:hover { background: var(--field-soft); }
 .combo-list li.none { color: var(--muted); cursor: default; background: transparent; }
+#ins-sug li { display: block; }
+.row-aviso { display: block; margin-bottom: 4px; color: var(--warn, #9a5b00); font-weight: 600; }
+#ins-sug li b { display: block; font-weight: 600; }
+#ins-sug li small { display: block; font-size: 12px; margin-top: 2px; line-height: 1.35; }
 #f_reg[readonly] { background: var(--sunk); color: var(--ink); }
 .vh { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 label.btn { display: inline-flex; align-items: center; }
@@ -805,6 +809,7 @@ const FATOR_ROD = 1.3; // linha reta → estrada (sinuosidade média)
 function haversine(a, b) { const R = 6371, t = Math.PI / 180; const dLa = (b.lat - a.lat) * t, dLo = (b.lon - a.lon) * t; const h = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * t) * Math.cos(b.lat * t) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); }
 const REGIAO_SENAR = {"Abadia de Goiás": "Metropolitana", "Abadiânia": "Centro Leste", "Acreúna": "Sudoeste", "Adelândia": "Centro Norte", "Alexânia": "Centro Leste", "Aloândia": "Sul", "Alto Horizonte": "Norte", "Alto Paraíso de Goiás": "Nordeste", "Alvorada do Norte": "Nordeste", "Amaralina": "Norte", "Americano do Brasil": "Centro Norte", "Amorinópolis": "Oeste", "Anhanguera": "Leste", "Anicuns": "Centro Norte", "Anápolis": "Centro Leste", "Aparecida de Goiânia": "Metropolitana", "Aparecida do Rio Doce": "Extremo Sudoeste", "Aporé": "Extremo Sudoeste", "Aragarças": "Oeste", "Aragoiânia": "Metropolitana", "Araguapaz": "Vale do Araguaia", "Araçu": "Centro Norte", "Arenópolis": "Oeste", "Aruanã": "Vale do Araguaia", "Aurilândia": "Oeste", "Avelinópolis": "Centro Norte", "Baliza": "Oeste", "Barro Alto": "Médio Norte", "Bela Vista de Goiás": "Metropolitana", "Bom Jardim de Goiás": "Oeste", "Bom Jesus de Goiás": "Sul", "Bonfinópolis": "Centro Leste", "Bonópolis": "Norte", "Brazabrantes": "Metropolitana", "Britânia": "Vale do Araguaia", "Buriti Alegre": "Sul", "Buriti de Goiás": "Vale do Araguaia", "Buritinópolis": "Nordeste", "Cabeceiras": "Nordeste", "Cachoeira Alta": "Extremo Sudoeste", "Cachoeira Dourada": "Sul", "Cachoeira de Goiás": "Oeste", "Caiapônia": "Oeste", "Caldas Novas": "Sul", "Caldazinha": "Metropolitana", "Campestre de Goiás": "Metropolitana", "Campinaçu": "Norte", "Campinorte": "Norte", "Campo Alegre de Goiás": "Leste", "Campo Limpo de Goiás": "Centro Leste", "Campos Belos": "Nordeste", "Campos Verdes": "Médio Norte", "Carmo do Rio Verde": "Centro Norte", "Castelândia": "Sudoeste", "Catalão": "Leste", "Caturaí": "Metropolitana", "Cavalcante": "Nordeste", "Caçu": "Extremo Sudoeste", "Ceres": "Médio Norte", "Cezarina": "Metropolitana", "Chapadão do Céu": "Extremo Sudoeste", "Cidade Ocidental": "Leste", "Cocalzinho de Goiás": "Centro Leste", "Colinas do Sul": "Médio Norte", "Corumbaíba": "Leste", "Corumbá de Goiás": "Centro Leste", "Cristalina": "Leste", "Cristianópolis": "Metropolitana", "Crixás": "Médio Norte", "Cromínia": "Sul", "Cumari": "Leste", "Córrego do Ouro": "Oeste", "Damianópolis": "Nordeste", "Damolândia": "Centro Norte", "Davinópolis": "Leste", "Diorama": "Oeste", "Divinópolis de Goiás": "Nordeste", "Doverlândia": "Oeste", "Edealina": "Sudoeste", "Edéia": "Sudoeste", "Estrela do Norte": "Norte", "Faina": "Vale do Araguaia", "Fazenda Nova": "Oeste", "Firminópolis": "Oeste", "Flores de Goiás": "Nordeste", "Formosa": "Nordeste", "Formoso": "Norte", "Gameleira de Goiás": "Centro Leste", "Goiandira": "Leste", "Goianira": "Metropolitana", "Goianápolis": "Centro Leste", "Goianésia": "Médio Norte", "Goiatuba": "Sul", "Goiás": "Vale do Araguaia", "Goiânia": "Metropolitana", "Gouvelândia": "Sudoeste", "Guapó": "Metropolitana", "Guarani de Goiás": "Nordeste", "Guaraíta": "Centro Norte", "Guarinos": "Médio Norte", "Heitoraí": "Centro Norte", "Hidrolina": "Médio Norte", "Hidrolândia": "Metropolitana", "Iaciara": "Nordeste", "Inaciolândia": "Sul", "Indiara": "Sudoeste", "Inhumas": "Centro Norte", "Ipameri": "Leste", "Ipiranga de Goiás": "Médio Norte", "Iporá": "Oeste", "Israelândia": "Oeste", "Itaberaí": "Centro Norte", "Itaguari": "Centro Norte", "Itaguaru": "Centro Norte", "Itajá": "Extremo Sudoeste", "Itapaci": "Médio Norte", "Itapirapuã": "Vale do Araguaia", "Itapuranga": "Centro Norte", "Itarumã": "Extremo Sudoeste", "Itauçu": "Centro Norte", "Itumbiara": "Sul", "Ivolândia": "Oeste", "Jandaia": "Sudoeste", "Jaraguá": "Centro Norte", "Jataí": "Extremo Sudoeste", "Jaupaci": "Oeste", "Jesúpolis": "Centro Norte", "Joviânia": "Sul", "Jussara": "Vale do Araguaia", "Lagoa Santa": "Extremo Sudoeste", "Leopoldo de Bulhões": "Centro Leste", "Luziânia": "Leste", "Mairipotaba": "Sul", "Mambaí": "Nordeste", "Mara Rosa": "Norte", "Marzagão": "Sul", "Matrinchã": "Vale do Araguaia", "Maurilândia": "Sudoeste", "Mimoso de Goiás": "Centro Leste", "Minaçu": "Norte", "Mineiros": "Extremo Sudoeste", "Moiporá": "Oeste", "Monte Alegre de Goiás": "Nordeste", "Montes Claros de Goiás": "Vale do Araguaia", "Montividiu": "Sudoeste", "Montividiu do Norte": "Norte", "Morrinhos": "Sul", "Morro Agudo de Goiás": "Centro Norte", "Mossâmedes": "Vale do Araguaia", "Mozarlândia": "Vale do Araguaia", "Mundo Novo": "Vale do Araguaia", "Mutunópolis": "Norte", "Nazário": "Metropolitana", "Nerópolis": "Centro Leste", "Niquelândia": "Médio Norte", "Nova América": "Médio Norte", "Nova Aurora": "Leste", "Nova Crixás": "Vale do Araguaia", "Nova Glória": "Médio Norte", "Nova Iguaçu de Goiás": "Norte", "Nova Roma": "Nordeste", "Nova Veneza": "Metropolitana", "Novo Brasil": "Vale do Araguaia", "Novo Gama": "Leste", "Novo Planalto": "Norte", "Orizona": "Leste", "Ouro Verde de Goiás": "Centro Leste", "Ouvidor": "Leste", "Padre Bernardo": "Centro Leste", "Palestina de Goiás": "Oeste", "Palmeiras de Goiás": "Metropolitana", "Palmelo": "Leste", "Palminópolis": "Metropolitana", "Panamá": "Sul", "Paranaiguara": "Extremo Sudoeste", "Paraúna": "Sudoeste", "Perolândia": "Extremo Sudoeste", "Petrolina de Goiás": "Centro Leste", "Pilar de Goiás": "Médio Norte", "Piracanjuba": "Sul", "Piranhas": "Oeste", "Pirenópolis": "Centro Leste", "Pires do Rio": "Leste", "Planaltina": "Nordeste", "Pontalina": "Sul", "Porangatu": "Norte", "Porteirão": "Sudoeste", "Portelândia": "Extremo Sudoeste", "Posse": "Nordeste", "Professor Jamil": "Sul", "Quirinópolis": "Sudoeste", "Rialma": "Médio Norte", "Rianápolis": "Médio Norte", "Rio Quente": "Sul", "Rio Verde": "Sudoeste", "Rubiataba": "Médio Norte", "Sanclerlândia": "Vale do Araguaia", "Santa Bárbara de Goiás": "Metropolitana", "Santa Cruz de Goiás": "Leste", "Santa Fé de Goiás": "Vale do Araguaia", "Santa Helena de Goiás": "Sudoeste", "Santa Isabel": "Médio Norte", "Santa Rita do Araguaia": "Extremo Sudoeste", "Santa Rita do Novo Destino": "Médio Norte", "Santa Rosa de Goiás": "Centro Norte", "Santa Tereza de Goiás": "Norte", "Santa Terezinha de Goiás": "Médio Norte", "Santo Antônio da Barra": "Sudoeste", "Santo Antônio de Goiás": "Metropolitana", "Santo Antônio do Descoberto": "Centro Leste", "Senador Canedo": "Metropolitana", "Serranópolis": "Extremo Sudoeste", "Silvânia": "Centro Leste", "Simolândia": "Nordeste", "São Domingos": "Nordeste", "São Francisco de Goiás": "Centro Norte", "São João d'Aliança": "Nordeste", "São João da Paraúna": "Oeste", "São Luiz do Norte": "Médio Norte", "São Luís de Montes Belos": "Oeste", "São Miguel do Araguaia": "Norte", "São Miguel do Passa Quatro": "Metropolitana", "São Patrício": "Centro Norte", "São Simão": "Extremo Sudoeste", "Sítio d'Abadia": "Nordeste", "Taquaral de Goiás": "Centro Norte", "Teresina de Goiás": "Nordeste", "Terezópolis de Goiás": "Centro Leste", "Trindade": "Metropolitana", "Trombas": "Norte", "Três Ranchos": "Leste", "Turvelândia": "Sudoeste", "Turvânia": "Metropolitana", "Uirapuru": "Médio Norte", "Uruana": "Centro Norte", "Uruaçu": "Médio Norte", "Urutaí": "Leste", "Valparaíso de Goiás": "Leste", "Varjão": "Metropolitana", "Vianópolis": "Centro Leste", "Vicentinópolis": "Sul", "Vila Boa": "Nordeste", "Vila Propício": "Médio Norte", "Água Fria de Goiás": "Nordeste", "Água Limpa": "Sul", "Águas Lindas de Goiás": "Centro Leste"};
 const norm = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+let CATALOGO = null, catP = null; const CAT_IDX = new Map(); // lista de insumos (insumos.json)
 const MUN_IDX = new Map(MUNICIPIOS.map((m) => [norm(m), m]));
 const regOf = (r) => REGIAO_SENAR[r.mun] || r.reg || "Sem região definida";
 const MUNS = { "Rio Verde": "Sul Goiano", "Jataí": "Sul Goiano", "Mineiros": "Sul Goiano", "Chapadão do Céu": "Sul Goiano", "Montividiu": "Sul Goiano", "Paraúna": "Sul Goiano", "Catalão": "Sul Goiano", "Goiatuba": "Sul Goiano", "Itumbiara": "Sul Goiano", "Morrinhos": "Sul Goiano", "Ipameri": "Sul Goiano", "Cristalina": "Leste Goiano", "Luziânia": "Leste Goiano", "Formosa": "Leste Goiano", "Goianésia": "Centro Goiano", "Porangatu": "Norte Goiano", "São Miguel do Araguaia": "Noroeste Goiano" };
@@ -1598,7 +1603,7 @@ function renderAmDyn() {
   $$("#pt-tags [data-tag]").forEach((b) => b.setAttribute("aria-pressed", String((p.tags || []).includes(b.dataset.tag))));
   $("#pt-who").textContent = p.equipe ? `Lançado por ${p.equipe} · ${ago(p.atualizadoEm || 0)}` : "";
   $("#am-hint").textContent = a.fase === "vegetativo" ? "Conte as plantas no metro linear; meça altura, raiz e entrenós de plantas representativas." : "Sem grãos/vagem medido, o cálculo usa " + fmt(S.params.gpv, 1) + " grãos por vagem.";
-  const cults = [...new Set(Object.values(S.c.amostragens).map((x) => x.cultivar).filter(Boolean))].sort();
+  const cults = [...new Set(Object.values(S.c.amostragens).map((x) => x.cultivar).filter(Boolean).concat((CATALOGO || []).filter((x) => x.c === "Semente" && x.n.includes(" - ")).map((x) => x.n.replace(/^Semente de Soja - /, ""))))].sort();
   $("#dl-cult").innerHTML = cults.map((c) => `<option value="${esc(c)}">`).join("");
   renderPts(); renderCalc(); renderFotos(); renderGeo("p"); renderQuais();
 }
@@ -2007,7 +2012,7 @@ const nn = (x) => { const v = num(x); return ok(v) ? v : 0; };
 const pc = (x, d) => (x === undefined || x === null || x === "" ? d : nn(x)) / 100;
 // listas editáveis: colunas [chave, rótulo, tipo, dica]
 const LISTS = {
-  ins: { add: "+ Produto ou operação", cols: [["d", "Produto / operação", "text"], ["u", "Unidade de compra", "un"], ["p", "Preço pago por unidade (R$)", "num"], ["dose", "Dose por hectare (na mesma unidade)", "num"], ["n", "Nº de aplicações", "num", "1"], ["maq", "Máquina utilizada", "maq"], ["rend", "Rendimento (ha/h)", "num", "da tabela"], ["area", "Área (ha)", "num", "área de soja"]] },
+  ins: { add: "+ Produto ou operação", cols: [["d", "Produto / operação", "text", "Digite para buscar na lista"], ["u", "Unidade de compra", "un"], ["p", "Preço pago por unidade (R$)", "num"], ["dose", "Dose por hectare (na mesma unidade)", "num"], ["n", "Nº de aplicações", "num", "1"], ["maq", "Máquina (conta uma vez por passada)", "maq"], ["rend", "Rendimento (ha/h)", "num", "da tabela"], ["area", "Área (ha)", "num", "área de soja"]] },
   rh_perm: { add: "+ Cargo", cols: [["d", "Cargo", "text"], ["n", "Nº de funcionários", "num"], ["sm", "Salário (nº de salários mínimos)", "num"]] },
   rh_temp: { add: "+ Temporário", cols: [["d", "Descrição", "text", "Safristas, diaristas"], ["n", "Diárias por ano", "num"], ["v", "Valor da diária (R$)", "num"]] },
   ret: { add: "+ Sócio / proprietário", cols: [["d", "Quem retira", "text", "Proprietário 1"], ["n", "Retiradas por ano", "num", "12"], ["v", "Valor por retirada (R$/mês)", "num"]] },
@@ -2026,9 +2031,13 @@ function prodExpedicao(c) {
   const vis = Object.entries(S.c.visitas).filter(([, v]) => c.propriedadeId ? v.propriedadeId === c.propriedadeId : c.prop && norm(v.prop) === norm(c.prop) && v.mun === c.mun).map(([id]) => id);
   return mean(vis.flatMap((vid) => amsDe(vid).filter((a) => a.fase !== "vegetativo").map((a) => calc(amView(a.id)).sc)).filter(ok));
 }
+// semente de soja: vendida em bag de 5 milhões de sementes; a "dose" é a população (sementes/ha).
+// Aceita "300.000", "300 mil" ou só "300" (entendido como mil sementes).
+const SEM_BAG = 5e6;
+const popSem = (x) => { const t = String(x ?? "").toLowerCase(); let v = parseFloat(t.replace(/[^\d,]/g, "").replace(",", ".")) || 0; if (/mil/.test(t) || (v > 0 && v < 2000)) v *= 1000; return v; };
 function insItem(r, A, prod, nAplDefault = 1) {
   const n = r.n === undefined || r.n === "" ? nAplDefault : nn(r.n);
-  const dose = r.u === "R$/ha" && (r.dose === undefined || r.dose === "") ? 1 : nn(r.dose); // valor fechado por hectare
+  const dose = r.u === "R$/ha" && (r.dose === undefined || r.dose === "") ? 1 : r.u === "bag" ? popSem(r.dose) / SEM_BAG : nn(r.dose); // valor fechado por hectare · bag: população ÷ 5 milhões
   const prodHa = nn(r.p) * dose * n;
   const m = MAQ_IDX.get(r.maq); let aplHa = 0;
   if (m) { const rend = nn(r.rend) || m.rend; aplHa = m.un === "R$/ha" ? m.custo * n : m.un === "R$/sc" ? m.custo * (ok(prod) ? prod : 0) : rend > 0 ? m.custo / rend * n : 0; }
@@ -2093,7 +2102,7 @@ function buildCustoForm() {
       <p class="legend" id="cu-prodinfo" style="margin:0"></p>
       <h3>Vendas da safra</h3><p class="legend" style="margin:0">Como o produtor vai comercializar a produção esperada desta safra. Em cada forma, informe quantas sacas e a que preço.</p><div class="grid">${VENDAS.map(([k, l, ajuda]) => `<p class="venda-ajuda"><b>${l}:</b> ${ajuda}</p>` + cuFld(`v_${k}_sc`, l, "sacas") + cuFld(`v_${k}_p`, "Preço", "R$/saca")).join("")}${cuFld("precoRef", "Preço de referência para o que não foi vendido", "R$/saca")}</div>
       <p class="legend" id="cu-vendainfo" style="margin:0"></p>`)}
-    ${sec("Insumos e operações", "04", ETAPAS.map(([k, l]) => listBox(k, l)).join(""), "Em cada linha: escolha a <b>unidade em que o produtor compra</b> (kg, litro, saca…), o <b>preço pago por essa unidade</b> e a <b>dose por hectare na mesma unidade</b>. Ex.: fungicida comprado a R$ 150 o litro, 0,5 L/ha, 3 aplicações. Se o produtor só souber o gasto por hectare, escolha “valor fechado por hectare” e informe o valor no preço. A máquina é opcional: o custo da aplicação sai da tabela de máquinas.")}
+    ${sec("Insumos e operações", "04", ETAPAS.map(([k, l]) => listBox(k, l)).join(""), "Em cada linha: escolha a <b>unidade em que o produtor compra</b> (kg, litro, saca…), o <b>preço pago por essa unidade</b> e a <b>dose por hectare na mesma unidade</b>. Ex.: fungicida comprado a R$ 150 o litro, 0,5 L/ha, 3 aplicações. <b>Semente de soja:</b> escolha “bag”, informe o preço do bag (5 milhões de sementes) e a população usada por hectare; o app calcula o custo por hectare. Se o produtor só souber o gasto por hectare, escolha “valor fechado por hectare” e informe o valor no preço. <b>Máquina: conte uma vez por passada.</b> Se semente e adubo vão juntos na plantadeira, ou se vários produtos vão na mesma calda do pulverizador, coloque a máquina só em uma linha e nas outras escolha “Sem máquina (foi junto)”. Adubo a lanço é outra operação e leva a sua própria máquina.")}
     ${sec("Mão de obra e retirada", "05", listBox("rh_perm", "Permanente") + listBox("rh_temp", "Temporária") + listBox("ret", "Retirada do produtor (pró-labore)"))}
     ${sec("Despesas gerais", "06", DESP.map(([g, fs]) => `<h3>${g}</h3><div class="grid">${fs.map(([k, l]) => cuFld(k, l, "R$/ano")).join("")}</div>`).join(""), "Valores do ano inteiro da propriedade. Os juros do custeio são calculados a partir do financiamento.")}
     ${sec("Financiamento", "07", listBox("fin", "Custeio da safra") + listBox("fin_lp", "Longo prazo") + `<div class="grid">
@@ -2103,11 +2112,14 @@ function buildCustoForm() {
     ${sec("Observações", "09", `<div class="fld"><div class="mic-row"><label for="cu_obs">Comentários do produtor sobre custos e mercado</label><button type="button" class="btn sm mic" data-mic="cu_obs" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect class="rec" x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg><span>Ditar</span></button></div><textarea id="cu_obs" data-bind="c.obs" placeholder="O que pesou mais no custo, mudanças em relação à safra passada…"></textarea><span class="mic-hint" id="hint-cu_obs"></span></div>`)}
     <details class="geral"><summary><span class="g-t">Parâmetros de cálculo</span><span class="g-s">salário mínimo, encargos, juros, diesel, câmbio</span></summary><div class="ficha"><div class="sec"><div class="grid">${CU_PARAMS.map(([k, l, u, d]) => `<div class="fld"><label for="cupar_${k}">${l} <span class="u">(${u})</span></label><input id="cupar_${k}" data-par="${k}" inputmode="decimal" placeholder="${fmt(d, k === "diesel" || k === "cambio" ? 2 : 0)}"></div>`).join("")}</div></div></div></details>`;
 }
-const UNIDADES = [["kg", "kg (quilo)"], ["L", "L (litro)"], ["t", "t (tonelada)"], ["sc", "saco / saca de semente"], ["g", "g (grama)"], ["mL", "mL (mililitro)"], ["dose", "dose"], ["un", "unidade"], ["R$/ha", "valor fechado por hectare (R$/ha)"]];
+const UNIDADES = [["kg", "kg (quilo)"], ["L", "L (litro)"], ["t", "t (tonelada)"], ["bag", "bag de semente (5 milhões de sementes)"], ["sc", "saco / saca de semente"], ["g", "g (grama)"], ["mL", "mL (mililitro)"], ["dose", "dose"], ["un", "unidade"], ["R$/ha", "valor fechado por hectare (R$/ha)"]];
 const unOpts = (sel) => `<option value="">Escolha…</option>` + UNIDADES.map(([v, l]) => `<option value="${esc(v)}" ${v === sel ? "selected" : ""}>${esc(l)}</option>`).join("") + (sel && !UNIDADES.some(([v]) => v === sel) ? `<option selected>${esc(sel)}</option>` : "");
-const maqOpts = (sel) => `<option value="">Sem máquina</option>` + MAQ_REF.map((m) => `<option ${m.nome === sel ? "selected" : ""}>${esc(m.nome)}</option>`).join("");
-function rowSummary(key, r, c, k) {
-  if (key.startsWith("ins_")) { const x = insItem(r, k.A, k.prod); return `produto ${brl(x.prodHa, 2)}/ha · aplicação ${brl(x.aplHa, 2)}/ha · <b>${brl(x.totHa, 2)}/ha</b>`; }
+const maqOpts = (sel) => `<option value="">Sem máquina (foi junto)</option>` + MAQ_REF.map((m) => `<option ${m.nome === sel ? "selected" : ""}>${esc(m.nome)}</option>`).join("");
+function rowSummary(key, r, c, k, i) {
+  if (key.startsWith("ins_")) { const x = insItem(r, k.A, k.prod);
+    const antes = r.maq ? (c[key] || []).slice(0, i).find((o) => o.maq === r.maq && (o.n || "1") === (r.n || "1")) : null;
+    const aviso = antes ? `<span class="row-aviso">Essa máquina já está na linha “${esc(antes.d || "anterior")}”. Se foi na mesma passada (ex.: semente e adubo na plantadeira), escolha “Sem máquina (foi junto)” aqui para não contar duas vezes.</span>` : "";
+    return aviso + `${r.u === "bag" && popSem(r.dose) ? fmt(popSem(r.dose) / 1000, 0) + " mil sementes/ha = " + fmt(popSem(r.dose) / SEM_BAG, 3) + " bag/ha · " : ""}produto ${brl(x.prodHa, 2)}/ha · aplicação ${brl(x.aplHa, 2)}/ha · <b>${brl(x.totHa, 2)}/ha</b>`; }
   if (key === "rh_perm") return `<b>${brl(nn(r.n) * nn(r.sm) * par(c, "sm") * (1 + par(c, "encargos") / 100) * 12)}/ano</b>`;
   if (key === "rh_temp" || key === "ret") return `<b>${brl(nn(r.n) * nn(r.v))}/ano</b>`;
   if (key === "fin") return `juros <b>${brl(nn(r.v) * nn(r.t) / 100)}</b>`;
@@ -2120,11 +2132,11 @@ function renderRows(key, force) {
   const c = CU(), k = custoCalc(c), rows = c[key] || [], cols = LISTS[listType(key)].cols;
   const focused = box.contains(document.activeElement);
   if (force || !focused || box.children.length !== rows.length) {
-    box.innerHTML = rows.map((r, i) => `<div class="rowc"><div class="grid">${cols.map(([f, l, t, h]) => `<div class="fld"><label for="r-${key}-${i}-${f}">${l}</label>${t === "maq" || t === "un"
+    box.innerHTML = rows.map((r, i) => `<div class="rowc"><div class="grid">${cols.map(([f, l, t, h]) => `<div class="fld${key.startsWith("ins_") && f === "d" ? " combo" : ""}"><label for="r-${key}-${i}-${f}">${f === "dose" && r.u === "bag" ? "População (sementes por hectare)" : l}</label>${t === "maq" || t === "un"
       ? `<select id="r-${key}-${i}-${f}" data-row="${key}|${i}|${f}">${t === "maq" ? maqOpts(r[f]) : unOpts(r[f])}</select>`
-      : `<input id="r-${key}-${i}-${f}" data-row="${key}|${i}|${f}" ${t === "num" ? 'inputmode="decimal"' : ""} value="${esc(r[f] ?? "")}" placeholder="${esc(h || "")}">`}</div>`).join("")}</div>
-      <div class="row-f"><span class="row-s" id="rs-${key}-${i}">${rowSummary(key, r, c, k)}</span><button type="button" class="btn sm ghost danger" data-delrow="${key}|${i}">Remover</button></div></div>`).join("");
-  } else rows.forEach((r, i) => { const s = $(`#rs-${key}-${i}`); if (s) s.innerHTML = rowSummary(key, r, c, k); });
+      : `<input id="r-${key}-${i}-${f}" data-row="${key}|${i}|${f}" ${t === "num" ? 'inputmode="decimal"' : key.startsWith("ins_") && f === "d" ? 'autocomplete="off" data-insumo="1"' : ""} value="${esc(r[f] ?? "")}" placeholder="${esc(f === "dose" && r.u === "bag" ? "ex.: 300.000" : h || "")}">`}</div>`).join("")}</div>
+      <div class="row-f"><span class="row-s" id="rs-${key}-${i}">${rowSummary(key, r, c, k, i)}</span><button type="button" class="btn sm ghost danger" data-delrow="${key}|${i}">Remover</button></div></div>`).join("");
+  } else rows.forEach((r, i) => { const s = $(`#rs-${key}-${i}`); if (s) s.innerHTML = rowSummary(key, r, c, k, i); });
   const sum = $("#lsum-" + key);
   if (sum) sum.innerHTML = key.startsWith("ins_") ? (k.et[key] ? `${brl(k.ha(k.et[key]), 2)}/ha de soja` : "") : rows.length ? `${rows.length} linha(s)` : "";
 }
@@ -2185,7 +2197,7 @@ function novaEntrevista(pr) {
   const c = { v: 3, data: today(), criadoEm: Date.now(), equipe: S.equipe || "", autorId: S.uid || null, vis: minhaChave(), prodBase: "produtor", safra: "2026/27",
     rh_perm: CARGOS.map((d) => ({ d })), rh_temp: [{ d: "Safristas" }, { d: "Diaristas" }], ret: [{ d: "Proprietário 1", n: "12" }],
     ins_pre: [{ d: "Calcário", u: "t", n: "1" }, { d: "Dessecação (herbicida)", u: "L", n: "1" }],
-    ins_plantio: [{ d: "Semente", u: "kg", n: "1" }, { d: "Tratamento de sementes", u: "L", n: "1" }, { d: "Fertilizante de plantio", u: "kg", n: "1" }],
+    ins_plantio: [{ d: "Semente de soja", u: "bag", n: "1" }, { d: "Tratamento de sementes", u: "L", n: "1" }, { d: "Fertilizante de plantio", u: "kg", n: "1" }],
     ins_conducao: [{ d: "Herbicida pós-emergente", u: "L", n: "1" }, { d: "Fungicida", u: "L", n: "1" }, { d: "Inseticida", u: "L", n: "1" }],
     ins_colheita: [{ d: "Colheita", u: "", n: "1" }], ins_pos: [{ d: "Frete até o armazém", u: "", n: "1" }] };
   if (pr) Object.assign(c, { propriedadeId: pr.id || null, prop: pr.nome || "", entrevistado: pr.proprietario || "", telefone: pr.telefone || "", mun: pr.municipio || "", reg: REGIAO_SENAR[pr.municipio] || "" });
@@ -2229,9 +2241,9 @@ function csvCustos() {
   return "﻿" + [head.join(";"), ...lines].join("\n");
 }
 function csvInsumos() {
-  const head = ["entrevista_id", "propriedade", "municipio", "etapa", "produto_operacao", "unidade", "preco_rs_un", "dose_un_ha", "aplicacoes", "maquina", "rendimento_ha_h", "area_ha", "produto_rs_ha", "aplicacao_rs_ha", "total_rs_ha"];
+  const head = ["entrevista_id", "propriedade", "municipio", "etapa", "produto_operacao", "categoria", "ingrediente_ativo", "unidade", "preco_rs_un", "dose_un_ha", "aplicacoes", "maquina", "rendimento_ha_h", "area_ha", "produto_rs_ha", "aplicacao_rs_ha", "total_rs_ha"];
   const lines = [];
-  Object.entries(S.c.custos).forEach(([id, c]) => { const k = custoCalc(c); ETAPAS.forEach(([e, l]) => (c[e] || []).forEach((r) => { if (!r.d && !r.p) return; const x = insItem(r, k.A, k.prod); lines.push([id, c.prop, c.mun, l, r.d, r.u, num(r.p), num(r.dose), num(r.n), r.maq, num(r.rend), nn(r.area) || k.A, x.prodHa, x.aplHa, x.totHa].map(csvQ).join(";")); })); });
+  Object.entries(S.c.custos).forEach(([id, c]) => { const k = custoCalc(c); ETAPAS.forEach(([e, l]) => (c[e] || []).forEach((r) => { if (!r.d && !r.p) return; const x = insItem(r, k.A, k.prod); const ct = CAT_IDX.get(norm(r.d)); lines.push([id, c.prop, c.mun, l, r.d, r.cat || ct?.c || "", ct?.a || "", r.u, num(r.p), num(r.dose), num(r.n), r.maq, num(r.rend), nn(r.area) || k.A, x.prodHa, x.aplHa, x.totHa].map(csvQ).join(";")); })); });
   return "﻿" + [head.join(";"), ...lines].join("\n");
 }
 
@@ -2253,6 +2265,51 @@ document.addEventListener("input", (e) => {
   if (el.dataset?.row && el.tagName !== "SELECT") { const [k, i, f] = el.dataset.row.split("|"); setRow(k, +i, f, el.value); }
   if (el.dataset?.par) write("custos", S.cnav.cid, { par: { ...(CU().par || {}), [el.dataset.par]: el.value } });
 });
+/* ---- lista de insumos (planilha do IFAG filtrada para soja) + nomes já digitados em outras entrevistas ---- */
+function carregarCatalogo() {
+  return catP || (catP = fetch("insumos.json").then((r) => r.json()).then((d) => {
+    CATALOGO = d.itens.map(([n, c, u, a]) => ({ n, c: d.cats[c], u, a, k: norm(n), ka: norm(a) }));
+    CATALOGO.forEach((x) => CAT_IDX.set(x.k, x));
+  }).catch(() => { catP = null; }));
+}
+setTimeout(carregarCatalogo, 1500);
+function sugestoesInsumo(q) {
+  const extras = new Map();
+  const [ek, ei] = (insEl?.dataset.row || "").split("|");
+  Object.entries(S.c.custos || {}).forEach(([id, c]) => ETAPAS.forEach(([e]) => (c[e] || []).forEach((r, j) => {
+    if (id === S.cnav.cid && e === ek && j === +ei) return; // a própria linha que está sendo digitada
+    const k = norm(r.d); if (k && !CAT_IDX.has(k) && !extras.has(k)) extras.set(k, { n: String(r.d).trim(), c: "Já digitado em entrevista", u: r.u || "", a: "", k, ka: "" });
+  })));
+  const ws = q.split(/\s+/).filter(Boolean), a = [], b = [], c = [];
+  for (const it of [...extras.values(), ...(CATALOGO || [])]) {
+    if (it.k.startsWith(q)) a.push(it);
+    else if (ws.every((w) => it.k.includes(w))) b.push(it);
+    else if (q.length >= 3 && it.ka && ws.every((w) => it.ka.includes(w))) c.push(it);
+    if (a.length >= 15) break;
+  }
+  return a.concat(b, c).slice(0, 15);
+}
+const insSug = Object.assign(document.createElement("ul"), { id: "ins-sug", className: "combo-list", hidden: true }); insSug.setAttribute("role", "listbox");
+let insOpts = [], insEl = null;
+function abrirSug(el) {
+  const q = norm(el.value); insEl = el;
+  insOpts = q.length >= 2 ? sugestoesInsumo(q) : [];
+  if (!insOpts.length) { insSug.hidden = true; return; }
+  insSug.innerHTML = insOpts.map((it, i) => `<li role="option" data-i="${i}" aria-selected="${i === 0}"><b>${esc(it.n)}</b><small>${esc([it.c, it.u && "compra em " + it.u, it.a].filter(Boolean).join(" · "))}</small></li>`).join("");
+  el.closest(".fld").appendChild(insSug); insSug.hidden = false;
+}
+function escolherInsumo(it) {
+  const [key, i] = insEl.dataset.row.split("|"), rows = (CU()[key] || []).map((r) => ({ ...r }));
+  if (!rows[+i]) return; insSug.hidden = true;
+  rows[+i].d = it.n; if (it.u && !rows[+i].u) rows[+i].u = it.u; if (it.c && !it.c.startsWith("Já")) rows[+i].cat = it.c;
+  write("custos", S.cnav.cid, { [key]: rows }); renderRows(key, true);
+  const prox = $(`#r-${key}-${i}-${rows[+i].u ? "p" : "u"}`); if (prox) prox.focus();
+}
+document.addEventListener("input", (e) => { if (e.target.dataset?.insumo) { if (!CATALOGO) carregarCatalogo().then(() => document.activeElement === e.target && abrirSug(e.target)); abrirSug(e.target); } });
+document.addEventListener("focusin", (e) => { if (e.target.dataset?.insumo) { carregarCatalogo(); abrirSug(e.target); } });
+document.addEventListener("focusout", (e) => { if (e.target.dataset?.insumo) setTimeout(() => { insSug.hidden = true; }, 150); });
+document.addEventListener("keydown", (e) => { if (e.target.dataset?.insumo && !insSug.hidden) { if (e.key === "Enter" && insOpts[0]) { e.preventDefault(); escolherInsumo(insOpts[0]); } else if (e.key === "Escape") insSug.hidden = true; } });
+insSug.addEventListener("pointerdown", (e) => { const li = e.target.closest("li[data-i]"); if (!li) return; e.preventDefault(); escolherInsumo(insOpts[+li.dataset.i]); });
 document.addEventListener("change", (e) => { const el = e.target; if (el.dataset?.row && el.tagName === "SELECT") { const [k, i, f] = el.dataset.row.split("|"); setRow(k, +i, f, el.value); renderRows(k, true); } });
 document.addEventListener("click", async (e) => {
   const t = e.target.closest("button"); if (!t) return;
