@@ -121,6 +121,18 @@ main > section { position: relative; z-index: 1; }
 .combo-list li[aria-selected="true"], .combo-list li:hover { background: var(--field-soft); }
 .combo-list li.none { color: var(--muted); cursor: default; background: transparent; }
 #ins-sug li { display: block; }
+#cu-conf h3 { margin: 14px 0 6px; }
+.conf-st { padding: 10px 12px; border-radius: var(--r); font-weight: 700; }
+.conf-st.bad { background: color-mix(in srgb, var(--crit) 14%, transparent); color: var(--crit); }
+.conf-st.warn { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
+.conf-st.ok { background: color-mix(in srgb, var(--good, #2e7d4f) 16%, transparent); color: var(--good, #2e7d4f); }
+.conf-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.conf-l li { border-left: 4px solid var(--crit); padding: 2px 0 2px 10px; }
+.conf-l li.w { border-left-color: var(--warn); }
+.conf-l .link { background: none; border: 0; padding: 4px 0; text-align: left; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; min-height: 0; }
+.conf-ok { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; }
+.conf-ok input { width: auto; min-height: 0; margin-top: 3px; }
+.pisca { outline: 3px solid var(--warn); outline-offset: 2px; border-radius: 4px; transition: outline-color .3s; }
 .row-aviso { display: block; margin-bottom: 4px; color: var(--warn, #9a5b00); font-weight: 600; }
 #ins-sug li b { display: block; font-weight: 600; }
 #ins-sug li small { display: block; font-size: 12px; margin-top: 2px; line-height: 1.35; }
@@ -2058,25 +2070,35 @@ function custoCalc(c) {
   let scV = 0, rV = 0; VENDAS.forEach(([k]) => { const q = nn(c["v_" + k + "_sc"]), p = nn(c["v_" + k + "_p"]); if (q > 0 && p > 0) { scV += q; rV += q * p; } });
   const pm = scV > 0 ? rV / scV : num(c.precoRef);
   const juros = par(c, "juros") / 100, SM = par(c, "sm"), enc = par(c, "encargos") / 100;
+  // rateio dos custos fixos para a soja (pela área de cada atividade no ano):
+  //  · terra (arrendamento pago e custo de oportunidade): soja × safrinha, que usam a mesma terra
+  //  · benfeitorias e veículos (já descontado o uso fora da agricultura): soja × safrinha × outras lavouras
+  //  · mão de obra permanente, retirada e despesas gerais: todas as atividades, inclusive pecuária
+  const aSaf = c.safrinha === "sim" ? nn(c.areaSafrinha) : 0, outras = c.outrasAtiv === "sim";
+  const aLav = outras ? nn(c.areaOutrasLav) : 0, aPast = outras ? nn(c.areaPastagem) : 0, aOut = outras ? nn(c.areaOutrasAtiv) : 0;
+  const fr = (den) => A > 0 && den > A ? A / den : 1, ratMan = num(c.rateioSoja), man = ok(ratMan) && ratMan > 0 && ratMan <= 100 ? ratMan / 100 : null;
+  const ratTerra = fr(A + aSaf), ratAgri = man ?? fr(A + aSaf + aLav), rat = man ?? fr(A + aSaf + aLav + aPast + aOut);
+  const areaPropSoja = Math.max(0, Math.min(nn(c.areaPropria) || Infinity, A - nn(c.areaArrendada))); // terra própria ocupada pela soja
   const et = {}; let insProd = 0, insApl = 0;
   ETAPAS.forEach(([k]) => { const t = (c[k] || []).reduce((s, r) => { const x = insItem(r, A, prod); s.p += x.prodR; s.a += x.aplR; return s; }, { p: 0, a: 0 }); et[k] = t.p + t.a; insProd += t.p; insApl += t.a; });
-  const rhPerm = (c.rh_perm || []).reduce((s, r) => s + nn(r.n) * nn(r.sm) * SM * (1 + enc) * 12, 0);
+  const rhPerm = (c.rh_perm || []).reduce((s, r) => s + nn(r.n) * nn(r.sm) * SM * (1 + enc) * 12, 0) * rat;
   const rhTemp = (c.rh_temp || []).reduce((s, r) => s + nn(r.n) * nn(r.v), 0);
-  const retirada = (c.ret || []).reduce((s, r) => s + nn(r.n) * nn(r.v), 0);
+  const retirada = (c.ret || []).reduce((s, r) => s + nn(r.n) * nn(r.v), 0) * rat;
   const arrUnit = c.arrendUnid === "sc" ? nn(c.arrendValor) * (ok(pm) ? pm : 0) : nn(c.arrendValor);
-  const arrend = arrUnit * nn(c.areaArrendada);
+  const arrend = arrUnit * nn(c.areaArrendada) * ratTerra;
   const recArrTerc = nn(c.areaArrTerc) * nn(c.valorArrTerc);
   const jurosCusteio = (c.fin || []).reduce((s, r) => s + nn(r.v) * nn(r.t) / 100, 0);
-  const desp = DESP.map(([g, fs]) => [g, fs.reduce((s, [k]) => s + nn(c[k]), 0)]);
+  const desp = DESP.map(([g, fs]) => [g, fs.reduce((s, [k]) => s + nn(c[k]), 0) * rat]);
   const despTot = desp.reduce((s, [, v]) => s + v, 0) + jurosCusteio;
   const pat = {}; let dep = 0, op = 0, manBenf = 0;
-  ["pat_benf", "pat_maq", "pat_impl", "pat_veic"].forEach((k) => { const t = (c[k] || []).reduce((s, r) => { const x = patRow(k, r, juros, c); s.dep += x.dep; s.op += x.op; s.man += x.man; s.tot += x.tot; return s; }, { dep: 0, op: 0, man: 0, tot: 0 }); pat[k] = t; dep += t.dep; op += t.op; manBenf += t.man; });
-  const opTerra = nn(c.arrendRegiao) * nn(c.areaPropria); op += opTerra;
+  ["pat_benf", "pat_maq", "pat_impl", "pat_veic"].forEach((k) => { const f = k === "pat_benf" || k === "pat_veic" ? ratAgri : 1; // máquinas e implementos já entram pelas horas de uso na soja
+    const t = (c[k] || []).reduce((s, r) => { const x = patRow(k, r, juros, c); s.dep += x.dep * f; s.op += x.op * f; s.man += x.man * f; s.tot += x.tot; return s; }, { dep: 0, op: 0, man: 0, tot: 0 }); pat[k] = t; dep += t.dep; op += t.op; manBenf += t.man; });
+  const opTerra = nn(c.arrendRegiao) * areaPropSoja * ratTerra; op += opTerra; // só a terra própria usada com soja
   const COE = insProd + insApl + rhPerm + rhTemp + arrend + manBenf + despTot;
   const COT = COE + retirada + dep, CT = COT + op;
   const RB = (ok(prod) ? prod : 0) * A * (ok(pm) ? pm : 0) + recArrTerc;
   const ha = (x) => A > 0 ? x / A : NaN, sc = (x) => A > 0 && prod > 0 ? x / A / prod : NaN;
-  return { A, prod, pe, usaExp, pm, scV, prodTotal: prod * A, et, insProd, insApl, rhPerm, rhTemp, retirada, arrend, recArrTerc, jurosCusteio, desp, despTot, pat, dep, op, opTerra, manBenf, COE, COT, CT, RB, ha, sc,
+  return { rat, ratAgri, ratTerra, aSaf, aLav, aPast, aOut, areaPropSoja, A, prod, pe, usaExp, pm, scV, prodTotal: prod * A, et, insProd, insApl, rhPerm, rhTemp, retirada, arrend, recArrTerc, jurosCusteio, desp, despTot, pat, dep, op, opTerra, manBenf, COE, COT, CT, RB, ha, sc,
     eq: ha(CT) / pm, cambio: par(c, "cambio"), preench: [A > 0, ok(prod), ok(pm), insProd + insApl > 0, rhPerm + rhTemp > 0, despTot > 0, dep > 0].filter(Boolean).length };
 }
 
@@ -2094,9 +2116,22 @@ function buildCustoForm() {
       <div class="fld combo"><label for="cu_mun">Município</label><input id="cu_mun" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="cumun-list" autocomplete="off" placeholder="Digite para buscar"><ul id="cumun-list" class="combo-list" role="listbox" hidden></ul><span class="mic-hint" id="hint-cumun"></span></div>
       <div class="fld"><label for="cu_reg">Região SENAR</label><input id="cu_reg" readonly tabindex="-1"></div>
       <div class="fld"><label for="cu_data">Data da entrevista</label><input id="cu_data" type="date" data-bind="c.data"></div></div>`)}
-    ${sec("Áreas", "02", `<div class="grid">${cuFld("areaSoja", "Área com soja (própria + arrendada)", "ha")}${cuFld("areaPropria", "Área própria agricultável", "ha")}${cuFld("areaArrendada", "Área arrendada de terceiros", "ha")}${cuFld("areaReserva", "Reserva legal", "ha")}${cuFld("areaOutras", "Outras áreas", "ha")}
+    ${sec("Áreas", "02", `<div class="grid">${cuFld("areaSoja", "Área com soja (própria + arrendada)", "ha")}${cuFld("areaPropria", "Área própria total (todas as atividades)", "ha")}${cuFld("areaArrendada", "Área arrendada de terceiros", "ha")}${cuFld("areaReserva", "Reserva legal", "ha")}${cuFld("areaOutras", "Outras áreas", "ha")}
       ${cuFld("arrendValor", "Arrendamento pago", "por ha arrendado")}<div class="fld"><label for="cu_arrendUnid">Unidade do arrendamento</label><select id="cu_arrendUnid" data-bind="c.arrendUnid"><option value="">R$/ha</option><option value="sc">sacas/ha</option></select></div>
-      ${cuFld("areaArrTerc", "Área própria arrendada a terceiros", "ha")}${cuFld("valorArrTerc", "Valor recebido", "R$/ha")}</div>`, "Os custos anuais da propriedade são divididos pela área com soja.")}
+      ${cuFld("areaArrTerc", "Área própria arrendada a terceiros", "ha")}${cuFld("valorArrTerc", "Valor recebido", "R$/ha")}</div>
+      <h3>Safrinha (2ª safra)</h3><div class="grid">
+      <div class="fld"><label for="cu_safrinha">Planta safrinha depois da soja? <span class="q">*</span></label><select id="cu_safrinha" data-bind="c.safrinha"><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+      <div class="fld saf-sim"><label for="cu_culturaSafrinha">Cultura da safrinha <span class="q">*</span></label><select id="cu_culturaSafrinha" data-bind="c.culturaSafrinha"><option value="">—</option><option>Milho</option><option>Sorgo</option><option>Feijão</option><option>Algodão</option><option>Milheto / cobertura</option><option>Outra</option></select></div>
+      <div class="fld saf-sim"><label for="cu_areaSafrinha">Área de safrinha <span class="u">(ha)</span> <span class="q">*</span></label><input id="cu_areaSafrinha" data-bind="c.areaSafrinha" inputmode="decimal"></div>
+</div>
+      <h3>Outras atividades na propriedade</h3><div class="grid">
+      <div class="fld"><label for="cu_outrasAtiv">Além da soja (e da safrinha), a propriedade tem outras atividades? <span class="q">*</span></label><select id="cu_outrasAtiv" data-bind="c.outrasAtiv"><option value="">—</option><option value="sim">Sim</option><option value="nao">Não, só soja e safrinha</option></select></div>
+      <div class="fld out-sim"><label for="cu_areaPastagem">Pastagem / pecuária <span class="u">(ha)</span></label><input id="cu_areaPastagem" data-bind="c.areaPastagem" inputmode="decimal"></div>
+      <div class="fld out-sim"><label for="cu_areaOutrasLav">Outras lavouras no verão (milho verão, algodão, feijão…) <span class="u">(ha)</span></label><input id="cu_areaOutrasLav" data-bind="c.areaOutrasLav" inputmode="decimal"></div>
+      <div class="fld out-sim"><label for="cu_areaOutrasAtiv">Outras atividades (café, eucalipto, hortaliças…) <span class="u">(ha)</span></label><input id="cu_areaOutrasAtiv" data-bind="c.areaOutrasAtiv" inputmode="decimal"></div>
+      <div class="fld out-sim"><label for="cu_descOutras">Quais atividades</label><input id="cu_descOutras" data-bind="c.descOutras" placeholder="Ex.: cria de gado, café irrigado"></div></div>
+      <div class="grid"><div class="fld rat-fld"><label for="cu_rateioSoja">Parte dos custos fixos que fica com a soja, se o produtor souber <span class="u">(%)</span></label><input id="cu_rateioSoja" data-bind="c.rateioSoja" inputmode="decimal" placeholder="calculado pelas áreas"></div></div>
+      <p class="legend" id="cu-safinfo" style="margin:0"></p>`, "Os custos anuais da propriedade são divididos pela área com soja. Se há safrinha ou outras atividades (pecuária, outras lavouras), os custos fixos são divididos entre elas. O custo de oportunidade da terra considera só a terra própria usada com soja.")}
     ${sec("Produção e comercialização", "03", `<div class="grid">${cuFld("prodEsp", "Produtividade esperada", "sc/ha")}${cuFld("prodPassada", "Produtividade safra passada", "sc/ha")}
       <div class="fld"><label for="cu_prodBase">Produtividade usada nos cálculos</label><select id="cu_prodBase" data-bind="c.prodBase"><option value="produtor">Esperada pelo produtor</option><option value="expedicao">Medida pela Expedição nesta fazenda</option></select></div></div>
       <p class="legend" id="cu-prodinfo" style="margin:0"></p>
@@ -2110,6 +2145,7 @@ function buildCustoForm() {
     ${sec("Mão de obra e retirada", "07", listBox("rh_perm", "Permanente") + listBox("rh_temp", "Temporária") + listBox("ret", "Retirada do produtor (pró-labore)"))}
     ${sec("Despesas gerais", "08", DESP.map(([g, fs]) => `<h3>${g}</h3><div class="grid">${fs.map(([k, l]) => cuFld(k, l, "R$/ano")).join("")}</div>`).join(""), "Valores do ano inteiro da propriedade. Os juros do custeio são calculados a partir do financiamento.")}
     ${sec("Observações", "09", `<div class="fld"><div class="mic-row"><label for="cu_obs">Comentários do produtor sobre custos e mercado</label><button type="button" class="btn sm mic" data-mic="cu_obs" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect class="rec" x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg><span>Ditar</span></button></div><textarea id="cu_obs" data-bind="c.obs" placeholder="O que pesou mais no custo, mudanças em relação à safra passada…"></textarea><span class="mic-hint" id="hint-cu_obs"></span></div>`)}
+    ${sec("Conferência e relatório", "10", `<div id="cu-conf"></div>`, "Os itens obrigatórios precisam estar preenchidos e os alertas conferidos com o produtor antes de gerar o PDF.")}
     <details class="geral"><summary><span class="g-t">Parâmetros de cálculo</span><span class="g-s">salário mínimo, encargos, juros, diesel, câmbio</span></summary><div class="ficha"><div class="sec"><div class="grid">${CU_PARAMS.map(([k, l, u, d]) => `<div class="fld"><label for="cupar_${k}">${l} <span class="u">(${u})</span></label><input id="cupar_${k}" data-par="${k}" inputmode="decimal" placeholder="${fmt(d, k === "diesel" || k === "cambio" ? 2 : 0)}"></div>`).join("")}</div></div></div></details>`;
 }
 const UNIDADES = [["kg", "kg (quilo)"], ["L", "L (litro)"], ["t", "t (tonelada)"], ["bag", "bag de semente (5 milhões de sementes)"], ["sc", "saco / saca de semente"], ["g", "g (grama)"], ["mL", "mL (mililitro)"], ["dose", "dose"], ["un", "unidade"], ["R$/ha", "valor fechado por hectare (R$/ha)"]];
@@ -2158,14 +2194,231 @@ function renderCustoCalc() {
       ${row("Margem bruta (RB − COE)", k.RB - k.COE)}${row("Margem líquida (RB − COT)", k.RB - k.COT)}${row("Lucro (RB − CT)", k.RB - k.CT, "k")}
       <tr><td>Lucro em dólar</td><td class="n">${k.A > 0 ? "US$ " + fmt(k.ha(k.RB - k.CT) / k.cambio, 0) : "—"}</td><td class="n">câmbio ${fmt(k.cambio, 2)}</td></tr>
     </table></div><div class="sync-note">Totais da propriedade no ano: COE ${brl(k.COE)} · CT ${brl(k.CT)}. Salvo automaticamente neste aparelho e enviado quando houver sinal.</div>`;
+  $$(".saf-sim").forEach((el) => { el.hidden = c.safrinha !== "sim"; });
+  $$(".out-sim").forEach((el) => { el.hidden = c.outrasAtiv !== "sim"; });
+  $$(".rat-fld").forEach((el) => { el.hidden = !(k.rat < 1 || ok(num(c.rateioSoja))); });
+  const pctI = (x) => fmt(x * 100, 0) + "%", manual = ok(num(c.rateioSoja)) && num(c.rateioSoja) > 0;
+  $("#cu-safinfo").innerHTML = k.rat < 1 || k.ratTerra < 1 ? `<b>Parte que fica com a soja:</b> mão de obra permanente, retirada e despesas gerais ${pctI(k.rat)}${manual ? " (informado)" : ""} · benfeitorias e veículos ${pctI(k.ratAgri)}${manual ? " (informado)" : ""} · terra (arrendamento e custo de oportunidade) ${pctI(k.ratTerra)}. Custo de oportunidade calculado sobre ${fmt(k.areaPropSoja, 0)} ha de terra própria com soja. Máquinas e implementos entram pelas horas de uso na soja.`
+    : c.safrinha === "sim" && !(k.aSaf > 0) ? "Informe a área de safrinha para dividir os custos fixos." : "";
   $("#cu-prodinfo").textContent = ok(k.pe) ? `A Expedição mediu ${fmt(k.pe, 1)} sc/ha nesta fazenda.${k.usaExp ? " Esse valor está sendo usado nos cálculos." : ""}` : c.prodBase === "expedicao" ? "Ainda não há medição da Expedição nesta fazenda; usando a produtividade esperada pelo produtor." : "";
   const vi = $("#cu-vendainfo"), prodT = k.prodTotal;
   vi.textContent = k.scV > 0 ? `Preço médio das vendas: ${brl(k.pm, 2)}/saca · ${fmt(k.scV, 0)} sacas comercializadas${ok(prodT) && prodT > 0 ? ` de ${fmt(prodT, 0)} esperadas (${fmt(k.scV / prodT * 100, 0)}%)` : ""}.` : "Sem vendas informadas; a receita usa o preço de referência.";
   vi.classList.toggle("need-msg", k.scV > 0 && ok(prodT) && prodT > 0 && k.scV > prodT * 1.001);
 }
+/* ---- conferência da entrevista: itens obrigatórios (bloqueiam o PDF) e alertas de possível erro de digitação ---- */
+const ETQ = Object.fromEntries(ETAPAS);
+const ehSemente = (r) => r.cat === "Semente" || r.u === "bag" || /semente/.test(norm(r.d)) && !/tratamento/.test(norm(r.d));
+const ehAdubo = (r) => r.cat === "Fertilizante" || r.cat === "Corretivo" || /fertiliz|adubo|(^|\W)map(\W|$)|kcl|cloreto de potassio|npk|ureia|super ?simples|calcario|gesso|\d{2}[-.]\d{2}[-.]\d{2}/.test(norm(r.d));
+const ehDefensivo = (r) => r.cat === "Defensivo" || /herbic|fungic|insetic|desseca|defensivo|nematic|tratamento de semente/.test(norm(r.d));
+function conferir(c, k) {
+  const falta = [], alerta = [];
+  const F = (msg, alvo) => falta.push({ msg, alvo }), W = (msg, alvo) => alerta.push({ msg, alvo });
+  const v = (f) => num(c[f]);
+  // 01 · identificação
+  if (!String(c.prop || "").trim()) F("Nome da propriedade", "cu_prop");
+  if (!c.mun) F("Município", "cu_mun");
+  if (!String(c.entrevistado || "").trim()) F("Nome do entrevistado", "cu_entrevistado");
+  if (!c.data) F("Data da entrevista", "cu_data");
+  // 02 · áreas
+  const A = k.A, ap = nn(c.areaPropria), aa = nn(c.areaArrendada);
+  if (!(A > 0)) F("Área com soja", "cu_areaSoja");
+  if (!(ap > 0) && !(aa > 0)) F("Área própria ou área arrendada", "cu_areaPropria");
+  if (aa > 0 && !(nn(c.arrendValor) > 0)) F("Valor do arrendamento pago (há área arrendada)", "cu_arrendValor");
+  if (A > 0 && (ap > 0 || aa > 0) && ap + aa < A * 0.95) W(`Área própria (${fmt(ap, 0)} ha) + arrendada (${fmt(aa, 0)} ha) = ${fmt(ap + aa, 0)} ha, menor que a área com soja (${fmt(A, 0)} ha). Confira.`, "cu_areaPropria");
+  if (aa > A * 1.05 && A > 0) W(`Área arrendada (${fmt(aa, 0)} ha) maior que a área com soja (${fmt(A, 0)} ha). A área arrendada é só a usada com soja?`, "cu_areaArrendada");
+  if (!c.outrasAtiv) F("A propriedade tem outras atividades além da soja? (sim ou não)", "cu_outrasAtiv");
+  if (c.outrasAtiv === "sim" && !(nn(c.areaPastagem) + nn(c.areaOutrasLav) + nn(c.areaOutrasAtiv) > 0)) F("Área das outras atividades (pastagem, outras lavouras ou outras)", "cu_areaPastagem");
+  const usoTotal = A - aa + nn(c.areaPastagem) * (c.outrasAtiv === "sim") + nn(c.areaOutrasLav) * (c.outrasAtiv === "sim") + nn(c.areaOutrasAtiv) * (c.outrasAtiv === "sim");
+  if (ap > 0 && A > 0 && c.outrasAtiv === "nao" && ap > (A - aa) * 1.3 + 50) W(`Área própria (${fmt(ap, 0)} ha) bem maior que a terra própria com soja (${fmt(A - aa, 0)} ha), mas foi marcado que não há outras atividades. Tem pastagem, reserva ou outra lavoura?`, "cu_outrasAtiv");
+  if (ap > 0 && c.outrasAtiv === "sim" && usoTotal > ap * 1.15 + 20) W(`Soja na terra própria + outras atividades somam ${fmt(usoTotal, 0)} ha, mais que a área própria (${fmt(ap, 0)} ha). Confira se alguma atividade é em terra arrendada.`, "cu_areaPropria");
+  if (!c.safrinha) F("Planta safrinha depois da soja? (sim ou não)", "cu_safrinha");
+  if (c.safrinha === "sim") {
+    if (!c.culturaSafrinha) F("Cultura da safrinha", "cu_culturaSafrinha");
+    if (!(nn(c.areaSafrinha) > 0)) F("Área de safrinha", "cu_areaSafrinha");
+    else if (A > 0 && nn(c.areaSafrinha) > A * 1.05) W(`Área de safrinha (${fmt(nn(c.areaSafrinha), 0)} ha) maior que a área de soja (${fmt(A, 0)} ha). Confira.`, "cu_areaSafrinha");
+  }
+  const arr = nn(c.arrendValor);
+  if (aa > 0 && arr > 0) {
+    if (c.arrendUnid === "sc" && arr > 40) W(`Arrendamento de ${fmt(arr, 0)} sacas/ha é muito alto. Será que o valor está em R$/ha? Confira a unidade.`, "cu_arrendUnid");
+    else if (c.arrendUnid === "sc" && arr < 3) W(`Arrendamento de ${fmt(arr, 1)} sacas/ha parece baixo.`, "cu_arrendValor");
+    else if (c.arrendUnid !== "sc" && arr < 60) W(`Arrendamento de R$ ${fmt(arr, 0)}/ha parece estar em sacas. Se for, mude a unidade para sacas/ha.`, "cu_arrendUnid");
+    else if (c.arrendUnid !== "sc" && arr > 6000) W(`Arrendamento de R$ ${fmt(arr, 0)}/ha está acima do comum. Confira.`, "cu_arrendValor");
+  }
+  // 03 · produção e comercialização
+  if (!ok(k.prod)) F("Produtividade esperada", "cu_prodEsp");
+  else if (k.prod < 30 || k.prod > 100) W(`Produtividade de ${fmt(k.prod, 1)} sc/ha está fora do comum (30 a 100 sc/ha). Confira.`, "cu_prodEsp");
+  const pp = v("prodPassada"); if (ok(pp) && pp > 0 && (pp < 20 || pp > 110)) W(`Produtividade da safra passada de ${fmt(pp, 1)} sc/ha está fora do comum.`, "cu_prodPassada");
+  if (!ok(k.pm)) F("Preço da soja: informe as vendas ou o preço de referência", "cu_precoRef");
+  VENDAS.forEach(([key, l]) => {
+    const q = v(`v_${key}_sc`), p = v(`v_${key}_p`);
+    if (q > 0 && !(p > 0)) F(`Preço da venda “${l}”`, `cu_v_${key}_p`);
+    if (p > 0 && !(q > 0)) F(`Sacas da venda “${l}”`, `cu_v_${key}_sc`);
+    if (p > 0 && (p < 80 || p > 200)) W(`Preço de R$ ${fmt(p, 2)}/saca em “${l}” está fora do comum (R$ 80 a 200).`, `cu_v_${key}_p`);
+  });
+  const pr = v("precoRef"); if (ok(pr) && pr > 0 && (pr < 80 || pr > 200)) W(`Preço de referência de R$ ${fmt(pr, 2)}/saca está fora do comum.`, "cu_precoRef");
+  if (k.scV > 0 && k.prodTotal > 0 && k.scV > k.prodTotal * 1.001) W(`Vendas somam ${fmt(k.scV, 0)} sacas, mais que a produção esperada (${fmt(k.prodTotal, 0)} sacas).`, "cu_v_barter_sc");
+  // 04 · patrimônio
+  if (k.areaPropSoja > 0 && !(nn(c.arrendRegiao) > 0)) F("Arrendamento na região (custo de oportunidade da terra própria)", "cu_arrendRegiao");
+  const maqs = (c.pat_maq || []).filter((r) => nn(r.v) > 0);
+  if (!maqs.length) W("Nenhuma máquina com valor no patrimônio: a depreciação de máquinas fica zero. Confirme se o produtor terceiriza todas as operações.", "ls-pat_maq");
+  ["pat_maq", "pat_impl"].forEach((key) => (c[key] || []).forEach((r, i) => { if (nn(r.v) > 0 && !(nn(r.uso) > 0)) W(`${r.d || "Item"}: falta o uso na soja (horas/ano); sem isso a depreciação dele fica zero.`, `r-${key}-${i}-uso`); }));
+  (c.pat_veic || []).forEach((r, i) => { if (nn(r.v) > 0 && !(nn(r.km) > 0)) W(`${r.d || "Veículo"}: falta o uso por ano (km); sem isso a depreciação fica zero.`, `r-pat_veic-${i}-km`); });
+  // 05 · financiamento
+  (c.fin || []).forEach((r, i) => { const t = nn(r.t); if (t > 30) W(`Taxa de ${fmt(t, 1)}% no custeio “${r.d || ""}” parece alta. A taxa é ao ano?`, `r-fin-${i}-t`); else if (nn(r.v) > 0 && !(t > 0)) W(`Custeio “${r.d || ""}” sem taxa de juros.`, `r-fin-${i}-t`); });
+  // 06 · insumos
+  const linhas = ETAPAS.flatMap(([key]) => (c[key] || []).map((r, i) => ({ r, key, i, x: insItem(r, A, k.prod) })));
+  if (!linhas.some((o) => ehSemente(o.r) && o.x.prodHa > 0)) F("Semente: preço e dose (ou população, se for bag)", "r-ins_plantio-0-p");
+  if (!linhas.some((o) => ehAdubo(o.r) && o.x.prodHa > 0)) F("Pelo menos um fertilizante ou corretivo com preço e dose", "ls-ins_plantio");
+  if (!linhas.some((o) => ehDefensivo(o.r) && o.x.prodHa > 0)) F("Pelo menos um defensivo (herbicida, fungicida ou inseticida) com preço e dose", "ls-ins_conducao");
+  linhas.forEach(({ r, key, i, x }) => {
+    const nome = `${r.d || "Linha sem nome"} (${ETQ[key]})`, p = nn(r.p), d = r.u === "bag" ? popSem(r.dose) : nn(r.dose), id = (f) => `r-${key}-${i}-${f}`;
+    if (!r.d && !p && !d) return;
+    if (p > 0 && !(d > 0) && r.u !== "R$/ha") F(`${nome}: falta a ${r.u === "bag" ? "população por hectare" : "dose por hectare"}`, id("dose"));
+    if (d > 0 && !(p > 0)) F(`${nome}: falta o preço`, id("p"));
+    if (p > 0 && !r.u) F(`${nome}: escolha a unidade de compra`, id("u"));
+    if (!(p > 0)) return;
+    if (r.u === "L") { if (d > 15) W(`${nome}: dose de ${fmt(d, 1)} L/ha é muito alta.`, id("dose")); if (p > 1500) W(`${nome}: R$ ${fmt(p, 2)} por litro é muito alto. O preço é do galão inteiro?`, id("p")); }
+    if (r.u === "kg") { if (d > 1200) W(`${nome}: dose de ${fmt(d, 0)} kg/ha é muito alta.`, id("dose")); if (p > 800) W(`${nome}: R$ ${fmt(p, 2)} por kg é muito alto. Será que o preço é por tonelada ou por saco?`, id("p")); }
+    if (r.u === "t") {
+      if (d > 20) W(`${nome}: dose de ${fmt(d, 0)} t/ha. Parece que a dose foi digitada em kg; em tonelada, 300 kg = 0,3.`, id("dose"));
+      else if (d > 6) W(`${nome}: dose de ${fmt(d, 1)} t/ha é muito alta.`, id("dose"));
+      if (p < 300) W(`${nome}: R$ ${fmt(p, 2)} por tonelada é muito baixo. O preço não está por kg ou por saco?`, id("p"));
+      if (p > 20000) W(`${nome}: R$ ${fmt(p, 0)} por tonelada é muito alto.`, id("p"));
+    }
+    if (r.u === "bag") {
+      if (d < 150000 || d > 600000) W(`${nome}: população de ${fmt(d / 1000, 0)} mil sementes/ha está fora do comum (150 a 600 mil).`, id("dose"));
+      if (p < 500 || p > 10000) W(`${nome}: R$ ${fmt(p, 0)} por bag de 5 milhões de sementes está fora do comum.`, id("p"));
+    }
+    if (r.u === "sc" && ehSemente(r)) W(`${nome}: semente de soja costuma ser comprada em bag de 5 milhões de sementes. Se for o caso, mude a unidade para “bag”.`, id("u"));
+    if (nn(r.n) > 8) W(`${nome}: ${fmt(nn(r.n), 0)} aplicações é muito. Confira.`, id("n"));
+    if (x.prodHa > 3000) W(`${nome}: dá ${brl(x.prodHa)}/ha só desse item. Confira preço, unidade e dose.`, id("p"));
+  });
+  const insHa = k.ha(k.insProd + k.insApl);
+  if (ok(insHa) && insHa > 0 && (insHa < 1500 || insHa > 9000)) W(`Insumos somam ${brl(insHa)}/ha, fora do comum (R$ 1.500 a 9.000/ha). Confira se falta algum item ou se há valor exagerado.`, "ls-ins_pre");
+  // 07 · mão de obra
+  if (!(k.rhPerm + k.rhTemp + k.retirada > 0)) F("Mão de obra ou retirada do produtor (se a família trabalha, informe a retirada)", "ls-rh_perm");
+  (c.rh_perm || []).forEach((r, i) => { if (nn(r.sm) > 20) W(`${r.d || "Cargo"}: ${fmt(nn(r.sm), 1)} salários mínimos por funcionário é muito. O campo pede o nº de salários, não o valor em reais.`, `r-rh_perm-${i}-sm`); });
+  (c.ret || []).forEach((r, i) => { if (nn(r.v) > 100000) W(`${r.d || "Retirada"}: ${brl(nn(r.v))} por mês parece alto.`, `r-ret-${i}-v`); });
+  // resultado
+  const ctHa = k.ha(k.CT);
+  if (ok(ctHa) && ctHa > 0 && (ctHa < 3000 || ctHa > 15000)) W(`Custo total de ${brl(ctHa)}/ha está fora do comum (R$ 3.000 a 15.000/ha). Vale revisar os maiores itens.`, "cu-calc");
+  if (ok(k.eq) && ok(k.prod) && k.eq > k.prod && k.CT > 0) W(`O custo total só se paga com ${fmt(k.eq, 1)} sc/ha, acima da produtividade usada (${fmt(k.prod, 1)}). Se o produtor confirmar, está certo: a safra dá prejuízo no custo total.`, "cu-calc");
+  return { falta, alerta };
+}
+const assinaturaAlertas = (al) => { let h = 0; for (const ch of al.map((a) => a.msg).join("|")) h = (h * 31 + ch.charCodeAt(0)) | 0; return al.length + ":" + (h >>> 0).toString(36); };
+function renderConferencia() {
+  const box = $("#cu-conf"); if (!box) return;
+  const c = CU(), k = custoCalc(c), { falta, alerta } = conferir(c, k);
+  const conferido = !alerta.length || c.alertasOk === assinaturaAlertas(alerta);
+  const item = (o, cls) => `<li class="${cls}"><button type="button" class="link" data-ir="${esc(o.alvo)}">${esc(o.msg)}</button></li>`;
+  box.innerHTML = `
+    <div class="conf-st ${falta.length ? "bad" : alerta.length && !conferido ? "warn" : "ok"}">${falta.length ? `Faltam ${falta.length} item(ns) obrigatório(s)` : alerta.length && !conferido ? `Tudo preenchido · ${alerta.length} alerta(s) para conferir` : "Entrevista completa e conferida"}</div>
+    ${falta.length ? `<h3>Obrigatórios</h3><ul class="conf-l">${falta.map((o) => item(o, "f")).join("")}</ul>` : ""}
+    ${alerta.length ? `<h3>Possíveis erros de preenchimento</h3><p class="legend" style="margin:0">Toque no alerta para ir ao campo. Se o valor estiver certo, confirme com o produtor e marque abaixo.</p><ul class="conf-l">${alerta.map((o) => item(o, "w")).join("")}</ul>
+      <label class="legend conf-ok"><input type="checkbox" id="cu-alertas-ok" ${conferido ? "checked" : ""}> Conferi os alertas com o produtor: os valores estão corretos</label>` : ""}
+    <div class="am-tools" style="margin-top:12px"><button type="button" class="btn pri" id="cu-pdf" ${falta.length || !conferido ? "disabled" : ""}>Gerar PDF para o produtor</button><span class="legend" id="cu-pdf-msg">${falta.length ? "Complete os obrigatórios para liberar o PDF." : !conferido ? "Confira os alertas para liberar o PDF." : esc(pdfMsg)}</span></div>`;
+}
+function irPara(id) {
+  const el = document.getElementById(id); if (!el) return;
+  el.closest("details")?.setAttribute("open", "");
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  const alvo = el.matches("input,select,textarea") ? el : el.querySelector("input,select,textarea");
+  el.classList.add("pisca"); setTimeout(() => el.classList.remove("pisca"), 1600);
+  if (alvo) setTimeout(() => alvo.focus({ preventScroll: true }), 350);
+}
+const situacaoCu = (c) => { const k = custoCalc(c), { falta, alerta } = conferir(c, k); return falta.length ? { cls: "run", t: `faltam ${falta.length}` } : alerta.length && c.alertasOk !== assinaturaAlertas(alerta) ? { cls: "run", t: `${alerta.length} alerta(s)` } : { cls: "ok", t: "completa" }; };
+
+/* ---- PDF para o produtor (jsPDF guardado no app: funciona sem internet) ---- */
+let pdfLibP = null, pdfMsg = "";
+const carregarScript = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+const libPdf = () => pdfLibP || (pdfLibP = carregarScript("lib/jspdf.umd.min.js").then(() => carregarScript("lib/jspdf.plugin.autotable.min.js")).catch((e) => { pdfLibP = null; throw e; }));
+async function imagemPng(src) {
+  const img = new Image(); img.src = src; await img.decode();
+  const cv = document.createElement("canvas"); cv.width = img.naturalWidth; cv.height = img.naturalHeight; cv.getContext("2d").drawImage(img, 0, 0);
+  return { data: cv.toDataURL("image/png"), w: img.naturalWidth, h: img.naturalHeight };
+}
+const pdfTxt = (s) => String(s ?? "").replace(/[−–—]/g, "-").replace(/[“”]/g, '"').replace(/[^\x00-\xFF]/g, "");
+async function gerarPdfCusto() {
+  await libPdf();
+  const c = CU(), k = custoCalc(c), { jsPDF } = window.jspdf, doc = new jsPDF({ unit: "mm", format: "a4" });
+  const W = 210, M = 14, VERDE = [14, 61, 38], CLARO = [234, 240, 228];
+  // cabeçalho
+  doc.setFillColor(...VERDE); doc.rect(0, 0, W, 34, "F");
+  try { const lg = await imagemPng("ifag-branco.png"); doc.addImage(lg.data, "PNG", M, 8, 18 * lg.w / lg.h, 18); } catch {}
+  try { const pl = await imagemPng("placa.webp"); doc.addImage(pl.data, "PNG", W - M - 20 * pl.w / pl.h, 7, 20 * pl.w / pl.h, 20); } catch {}
+  doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.text(pdfTxt("Expedição Safra Goiás"), W / 2, 15, { align: "center" });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(pdfTxt(`Custo de produção da soja · safra ${c.safra || "2026/27"}`), W / 2, 22, { align: "center" });
+  doc.setFontSize(8.5); doc.text(pdfTxt("4ª edição · IFAG"), W / 2, 28, { align: "center" });
+  // identificação
+  doc.setTextColor(30); let y = 44;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.text(pdfTxt(c.prop || "Propriedade"), M, y);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); y += 6;
+  doc.text(pdfTxt([c.entrevistado && `Produtor: ${c.entrevistado}`, c.mun && `${c.mun}${REGIAO_SENAR[c.mun] ? " · região " + REGIAO_SENAR[c.mun] : ""}`, `Entrevista em ${fmtDate(c.data)}`].filter(Boolean).join("   ·   ")), M, y);
+  y += 5; doc.text(pdfTxt(`Área com soja: ${fmt(k.A, 0)} ha   ·   Produtividade usada: ${fmt(k.prod, 1)} sc/ha (${k.usaExp ? "medida pela Expedição" : "esperada pelo produtor"})   ·   Preço médio: ${brl(k.pm, 2)}/saca`), M, y);
+  const ativ = [k.aSaf > 0 && `safrinha de ${String(c.culturaSafrinha || "outra cultura").toLowerCase()} em ${fmt(k.aSaf, 0)} ha`, k.aPast > 0 && `pastagem em ${fmt(k.aPast, 0)} ha`, k.aLav > 0 && `outras lavouras em ${fmt(k.aLav, 0)} ha`, k.aOut > 0 && `outras atividades em ${fmt(k.aOut, 0)} ha`].filter(Boolean);
+  if (ativ.length) { y += 5; doc.text(doc.splitTextToSize(pdfTxt(`Outras atividades: ${ativ.join(", ")}. Os custos fixos foram divididos entre as atividades: a soja fica com ${fmt(k.rat * 100, 0)}% da mão de obra permanente e despesas gerais e com ${fmt(k.ratTerra * 100, 0)}% dos custos da terra.`), W - 2 * M), M, y); if (pdfTxt(ativ.join()).length > 60) y += 4; }
+  // destaques
+  y += 7; const bw = (W - 2 * M - 9) / 4;
+  [["Custo total", `${brl(k.ha(k.CT))}/ha`], ["Custo por saca", `${brl(k.sc(k.CT), 2)}`], ["Ponto de equilíbrio", `${fmt(k.eq, 1)} sc/ha`], ["Resultado (lucro)", `${brl(k.ha(k.RB - k.CT))}/ha`]].forEach(([l, v], i) => {
+    const x = M + i * (bw + 3); doc.setFillColor(...CLARO); doc.roundedRect(x, y, bw, 17, 2, 2, "F");
+    doc.setFontSize(8); doc.setTextColor(80); doc.text(pdfTxt(l), x + 3, y + 5.5);
+    doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.setTextColor(...(i === 3 && k.RB - k.CT < 0 ? [170, 40, 30] : VERDE)); doc.text(pdfTxt(v), x + 3, y + 13); doc.setFont("helvetica", "normal");
+  });
+  y += 24; doc.setTextColor(30);
+  const pct = (x) => k.CT > 0 ? fmt(x / k.CT * 100, 1) + "%" : "—";
+  const L = (l, x, forte) => ({ l, x, forte });
+  const comp = [L("Insumos · produtos", k.insProd), L("Insumos · aplicação (máquinas)", k.insApl), L("Mão de obra", k.rhPerm + k.rhTemp), L("Arrendamento pago", k.arrend), L("Manutenção de benfeitorias", k.manBenf), L("Despesas gerais e juros do custeio", k.despTot),
+    L("Custo operacional efetivo (COE)", k.COE, 1), L("Retirada do produtor", k.retirada), L("Depreciação", k.dep), L("Custo operacional total (COT)", k.COT, 1), L("Custo de oportunidade (terra e capital)", k.op), L("Custo total (CT)", k.CT, 1)];
+  const estilo = { font: "helvetica", fontSize: 9, cellPadding: 1.8, textColor: 30 }, cab = { fillColor: VERDE, textColor: 255, fontStyle: "bold" };
+  doc.autoTable({ startY: y, margin: { left: M, right: M, bottom: 24 }, styles: estilo, headStyles: cab, theme: "grid",
+    head: [["Composição do custo", "R$/ha", "R$/saca", "% do custo total"]],
+    body: comp.map((o) => [pdfTxt(o.l), fmt(k.ha(o.x), 0), fmt(k.sc(o.x), 2), pct(o.x)]),
+    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+    didParseCell: (d) => { if (d.section === "body" && comp[d.row.index]?.forte) { d.cell.styles.fontStyle = "bold"; d.cell.styles.fillColor = CLARO; } } });
+  y = doc.lastAutoTable.finalY + 6;
+  doc.autoTable({ startY: y, margin: { left: M, right: M, bottom: 24 }, styles: estilo, headStyles: cab, theme: "grid",
+    head: [["Resultado", "R$/ha", "R$/saca", ""]],
+    body: [["Receita bruta", fmt(k.ha(k.RB), 0), fmt(k.pm, 2), pdfTxt(`${fmt(k.prod, 1)} sc/ha x ${brl(k.pm, 2)}`)], ["Margem bruta (receita - COE)", fmt(k.ha(k.RB - k.COE), 0), fmt(k.sc(k.RB - k.COE), 2), ""], ["Margem líquida (receita - COT)", fmt(k.ha(k.RB - k.COT), 0), fmt(k.sc(k.RB - k.COT), 2), ""], ["Lucro (receita - CT)", fmt(k.ha(k.RB - k.CT), 0), fmt(k.sc(k.RB - k.CT), 2), pdfTxt(`US$ ${fmt(k.ha(k.RB - k.CT) / k.cambio, 0)}/ha (câmbio ${fmt(k.cambio, 2)})`)]].map((r) => r.map(pdfTxt)),
+    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } } });
+  y = doc.lastAutoTable.finalY + 6;
+  // insumos por etapa
+  const ins = ETAPAS.flatMap(([key, l]) => (c[key] || []).map((r) => ({ l, r, x: insItem(r, k.A, k.prod) }))).filter((o) => o.x.totHa > 0);
+  if (ins.length) doc.autoTable({ startY: y, margin: { left: M, right: M, bottom: 24 }, styles: { ...estilo, fontSize: 8.5 }, headStyles: cab, theme: "grid",
+    head: [["Etapa", "Produto / operação", "Dose", "Aplic.", "Produto R$/ha", "Aplicação R$/ha", "Total R$/ha"]],
+    body: ins.map(({ l, r, x }) => [l, r.d || "", r.u === "R$/ha" ? "valor/ha" : r.u === "bag" ? `${fmt(popSem(r.dose) / 1000, 0)} mil sem./ha` : `${r.dose || ""} ${r.u || ""}/ha`, r.n || "1", fmt(x.prodHa, 2), fmt(x.aplHa, 2), fmt(x.totHa, 2)].map(pdfTxt)),
+    foot: [["", "Total de insumos e operações", "", "", fmt(k.ha(k.insProd), 2), fmt(k.ha(k.insApl), 2), fmt(k.ha(k.insProd + k.insApl), 2)]], footStyles: { fillColor: CLARO, textColor: 30, fontStyle: "bold" },
+    columnStyles: { 3: { halign: "center" }, 4: { halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" } } });
+  y = (doc.lastAutoTable?.finalY || y) + 6;
+  const vend = VENDAS.map(([key, l]) => [l, nn(c[`v_${key}_sc`]), nn(c[`v_${key}_p`])]).filter(([, q, p]) => q > 0 && p > 0);
+  if (vend.length) doc.autoTable({ startY: y, margin: { left: M, right: M, bottom: 24 }, styles: estilo, headStyles: cab, theme: "grid",
+    head: [["Comercialização", "Sacas", "Preço R$/saca", "% da produção esperada"]],
+    body: vend.map(([l, q, p]) => [pdfTxt(l), fmt(q, 0), fmt(p, 2), k.prodTotal > 0 ? fmt(q / k.prodTotal * 100, 0) + "%" : "—"]),
+    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } } });
+  // rodapé em todas as páginas
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(110);
+    doc.text(doc.splitTextToSize(pdfTxt(`Valores calculados a partir das informações prestadas pelo produtor na entrevista${c.equipe ? `, conduzida por ${c.equipe}` : ""}. COE: custo operacional efetivo (desembolso). COT: COE + retirada + depreciação. CT: COT + custo de oportunidade da terra e do capital (${fmt(par(c, "juros"), 1)}% ao ano).`), W - 2 * M), M, 284);
+    doc.text(pdfTxt(`Expedição Safra Goiás · IFAG · gerado em ${new Date().toLocaleDateString("pt-BR")} · página ${i} de ${n}`), W / 2, 292, { align: "center" });
+  }
+  const nome = `custo-producao-${norm(c.prop || "fazenda").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${c.data || today()}.pdf`;
+  return { blob: doc.output("blob"), nome };
+}
+async function compartilharPdf() {
+  const b = $("#cu-pdf"), msg = { set textContent(t) { pdfMsg = t; const el = $("#cu-pdf-msg"); if (el) el.textContent = t; } }; b.disabled = true; msg.textContent = "Gerando PDF…";
+  try {
+    const { blob, nome } = await gerarPdfCusto(), file = new File([blob], nome, { type: "application/pdf" }), c = CU();
+    write("custos", S.cnav.cid, { pdfEm: Date.now() });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: "Custo de produção · Expedição Safra Goiás", text: `Relatório de custo de produção da ${c.prop || "propriedade"} · Expedição Safra Goiás` }); msg.textContent = "PDF pronto. Escolha o WhatsApp do produtor na lista."; }
+      catch (err) { msg.textContent = err?.name === "AbortError" ? "" : "Não foi possível abrir o compartilhamento; o PDF foi baixado."; if (err?.name !== "AbortError") await S.dl.save({ filename: nome, data: blob }); }
+    } else { await S.dl.save({ filename: nome, data: blob }); msg.textContent = "PDF baixado. Envie pelo WhatsApp ou e-mail do produtor."; }
+  } catch (e) { msg.textContent = "Não foi possível gerar o PDF. Abra o app com internet uma vez e tente de novo."; }
+  const bb = $("#cu-pdf"); if (bb) bb.disabled = false; setTimeout(() => { pdfMsg = ""; }, 60000);
+}
 function cuCard(id, c) {
   const k = custoCalc(c);
-  return `<div class="card ${id === S.cnav.cid ? "on" : ""}"><h3><span>${esc(c.prop || "Entrevista sem nome")}</span><span class="pill ${k.preench >= 6 ? "ok" : "run"}">${k.preench}/7 blocos</span></h3>
+  return `<div class="card ${id === S.cnav.cid ? "on" : ""}"><h3><span>${esc(c.prop || "Entrevista sem nome")}</span>${(() => { const st = situacaoCu(c); return `<span class="pill ${st.cls}">${st.t}</span>`; })()}</h3>
     <div class="m">${esc(c.mun || "—")} · ${fmtDate(c.data)}${c.equipe ? " · " + esc(c.equipe) : ""}</div>
     <div class="r"><span class="big">${k.A > 0 && k.CT ? brl(k.ha(k.CT)) + "/ha" : "—"}</span>${ok(k.sc(k.CT)) && k.CT ? `<span class="m">${brl(k.sc(k.CT), 2)}/saca</span>` : ""}</div>
     <div class="r"><button class="btn sm pri" type="button" data-open-cu="${esc(id)}">Abrir entrevista</button></div></div>`;
@@ -2190,7 +2443,7 @@ function renderCuDyn() {
   const c = CU();
   $("#cu-title").textContent = c.prop || "Entrevista sem nome";
   $("#cu-eyebrow").textContent = `Custo de produção · ${fmtDate(c.data)}${c.equipe ? " · " + c.equipe : ""}`;
-  renderAllRows(false); renderCustoCalc();
+  renderAllRows(false); renderCustoCalc(); renderConferencia();
 }
 function novaEntrevista(pr) {
   const id = rid("cu");
@@ -2240,8 +2493,8 @@ function blocoCustos() {
     ${precos ? `<p class="legend">Preço médio pago nos adubos (linhas de insumos em tonelada): ${precos}</p>` : ""}</div>`;
 }
 function csvCustos() {
-  const head = ["entrevista_id", "data", "safra", "regiao_senar", "municipio", "propriedade", "entrevistado", "funcao", "equipe", "area_soja_ha", "area_propria_ha", "area_arrendada_ha", "prod_esperada_scha", "prod_expedicao_scha", "prod_usada_scha", "preco_medio_rs_sc", "sacas_vendidas", ...ETAPAS.map(([k]) => k + "_rs"), "insumos_produtos_rs", "insumos_aplicacao_rs", "mao_obra_perm_rs", "mao_obra_temp_rs", "arrendamento_rs", "manut_benfeitorias_rs", ...DESP.map(([g]) => "desp_" + norm(g).replace(/\s+/g, "_") + "_rs"), "juros_custeio_rs", "coe_rs", "retirada_rs", "depreciacao_rs", "cot_rs", "oportunidade_rs", "ct_rs", "receita_bruta_rs", "coe_rs_ha", "cot_rs_ha", "ct_rs_ha", "ct_rs_saca", "ponto_equilibrio_scha", "margem_bruta_rs_ha", "margem_liquida_rs_ha", "lucro_rs_ha", "lucro_usd_ha", "forma_compra", "preco_diesel", "preco_map", "preco_kcl", "observacao"];
-  const lines = Object.entries(S.c.custos).map(([id, c]) => { const k = custoCalc(c); return [id, c.data, c.safra, regOf(c), c.mun, c.prop, c.entrevistado, c.funcao, c.equipe, k.A, num(c.areaPropria), num(c.areaArrendada), num(c.prodEsp), k.pe, k.prod, k.pm, k.scV, ...ETAPAS.map(([e]) => k.et[e]), k.insProd, k.insApl, k.rhPerm, k.rhTemp, k.arrend, k.manBenf, ...k.desp.map(([, v]) => v), k.jurosCusteio, k.COE, k.retirada, k.dep, k.COT, k.op, k.CT, k.RB, k.ha(k.COE), k.ha(k.COT), k.ha(k.CT), k.sc(k.CT), k.eq, k.ha(k.RB - k.COE), k.ha(k.RB - k.COT), k.ha(k.RB - k.CT), k.ha(k.RB - k.CT) / k.cambio, c.formaCompra, num(c.precoDiesel), num(c.precoMAP), num(c.precoKCl), c.obs].map(csvQ).join(";"); });
+  const head = ["entrevista_id", "data", "safra", "regiao_senar", "municipio", "propriedade", "entrevistado", "funcao", "equipe", "area_soja_ha", "area_propria_ha", "area_arrendada_ha", "prod_esperada_scha", "prod_expedicao_scha", "prod_usada_scha", "preco_medio_rs_sc", "sacas_vendidas", ...ETAPAS.map(([k]) => k + "_rs"), "insumos_produtos_rs", "insumos_aplicacao_rs", "mao_obra_perm_rs", "mao_obra_temp_rs", "arrendamento_rs", "manut_benfeitorias_rs", ...DESP.map(([g]) => "desp_" + norm(g).replace(/\s+/g, "_") + "_rs"), "juros_custeio_rs", "coe_rs", "retirada_rs", "depreciacao_rs", "cot_rs", "oportunidade_rs", "ct_rs", "receita_bruta_rs", "coe_rs_ha", "cot_rs_ha", "ct_rs_ha", "ct_rs_saca", "ponto_equilibrio_scha", "margem_bruta_rs_ha", "margem_liquida_rs_ha", "lucro_rs_ha", "lucro_usd_ha", "forma_compra", "preco_diesel", "preco_map", "preco_kcl", "safrinha", "cultura_safrinha", "area_safrinha_ha", "outras_atividades", "area_pastagem_ha", "area_outras_lavouras_ha", "area_outras_ativ_ha", "rateio_custos_fixos_soja_pct", "rateio_terra_soja_pct", "situacao", "observacao"];
+  const lines = Object.entries(S.c.custos).map(([id, c]) => { const k = custoCalc(c); return [id, c.data, c.safra, regOf(c), c.mun, c.prop, c.entrevistado, c.funcao, c.equipe, k.A, num(c.areaPropria), num(c.areaArrendada), num(c.prodEsp), k.pe, k.prod, k.pm, k.scV, ...ETAPAS.map(([e]) => k.et[e]), k.insProd, k.insApl, k.rhPerm, k.rhTemp, k.arrend, k.manBenf, ...k.desp.map(([, v]) => v), k.jurosCusteio, k.COE, k.retirada, k.dep, k.COT, k.op, k.CT, k.RB, k.ha(k.COE), k.ha(k.COT), k.ha(k.CT), k.sc(k.CT), k.eq, k.ha(k.RB - k.COE), k.ha(k.RB - k.COT), k.ha(k.RB - k.CT), k.ha(k.RB - k.CT) / k.cambio, c.formaCompra, num(c.precoDiesel), num(c.precoMAP), num(c.precoKCl), c.safrinha || "", c.culturaSafrinha || "", num(c.areaSafrinha), c.outrasAtiv || "", num(c.areaPastagem), num(c.areaOutrasLav), num(c.areaOutrasAtiv), k.rat * 100, k.ratTerra * 100, situacaoCu(c).t, c.obs].map(csvQ).join(";"); });
   return "﻿" + [head.join(";"), ...lines].join("\n");
 }
 function csvInsumos() {
@@ -2314,10 +2567,13 @@ document.addEventListener("focusin", (e) => { if (e.target.dataset?.insumo) { ca
 document.addEventListener("focusout", (e) => { if (e.target.dataset?.insumo) setTimeout(() => { insSug.hidden = true; }, 150); });
 document.addEventListener("keydown", (e) => { if (e.target.dataset?.insumo && !insSug.hidden) { if (e.key === "Enter" && insOpts[0]) { e.preventDefault(); escolherInsumo(insOpts[0]); } else if (e.key === "Escape") insSug.hidden = true; } });
 insSug.addEventListener("pointerdown", (e) => { const li = e.target.closest("li[data-i]"); if (!li) return; e.preventDefault(); escolherInsumo(insOpts[+li.dataset.i]); });
+document.addEventListener("change", (e) => { if (e.target.id === "cu-alertas-ok") { const c = CU(), al = conferir(c, custoCalc(c)).alerta; write("custos", S.cnav.cid, { alertasOk: e.target.checked ? assinaturaAlertas(al) : "" }); renderConferencia(); } });
 document.addEventListener("change", (e) => { const el = e.target; if (el.dataset?.row && el.tagName === "SELECT") { const [k, i, f] = el.dataset.row.split("|"); setRow(k, +i, f, el.value); renderRows(k, true); } });
 document.addEventListener("click", async (e) => {
   const t = e.target.closest("button"); if (!t) return;
   if (t.dataset.addrow) addRow(t.dataset.addrow);
+  if (t.dataset.ir) irPara(t.dataset.ir);
+  if (t.id === "cu-pdf") compartilharPdf();
   if (t.dataset.delrow && armed(t)) { const [k, i] = t.dataset.delrow.split("|"); delRow(k, +i); }
   if (t.dataset.openCu) { S.cnav = { scr: "form", cid: t.dataset.openCu }; showCu("form"); }
   if (t.id === "cu-back") showCu("list");
